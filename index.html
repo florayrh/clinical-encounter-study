@@ -190,7 +190,10 @@ const cleanId = v => (v || "").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 40);
 /* ---------- settings ---------- */
 const FAST = TEST && (QS.get("fast") === "1" || location.hash === "#fast");
 const SPEED = FAST ? 8 : 1;
-const DRT_SPEED = 1;   // the dot runs at real timing in every mode
+const DRT_SPEED = 1;
+const IS_MAC = /Mac/i.test(navigator.userAgent || "") || /Mac/i.test(navigator.platform || "");
+const KEY = IS_MAC ? "control key" : "Ctrl key";
+const KEY_WHERE = IS_MAC ? "control (⌃), at the bottom left of your keyboard, not command" : "Ctrl, at the bottom left of your keyboard";   // the dot runs at real timing in every mode
 const CP_SECONDS = 30;                              // checkpoint length, equal across conditions
 const PRACTICE_CP_SECONDS = 20;
 const BASELINE_SECONDS = 30;
@@ -517,8 +520,13 @@ const DRT = {
     this.phase = null; this.seg = null;
   }
 };
-/* response key: the Control key (Ctrl), which is not used in ordinary typing */
-document.addEventListener("keydown", e => { if (e.key === "Control" && !e.repeat) DRT.press(e); }, true);
+/* response key: the Control key (control on a Mac, Ctrl on Windows), which is not used in ordinary typing.
+   Command or Windows key presses during a task are logged as wrong_key so key confusion can be checked. */
+document.addEventListener("keydown", e => {
+  if (e.repeat) return;
+  if (e.key === "Control") DRT.press(e);
+  else if (e.key === "Meta" && DRT.phase) D.drt_false_alarms.push({ phase: DRT.phase, segment: DRT.seg, at_ms: now(), kind: "wrong_key", key: IS_MAC ? "command" : "windows" });
+}, true);
 
 /* ---------- environment logging ---------- */
 document.addEventListener("visibilitychange", () => log("visibility", { state: document.visibilityState, screen: cur && cur.name }));
@@ -755,8 +763,8 @@ function sDrtIntro() {
   screen("drt_intro", "Training");
   const n = el(`<div class="col"><div class="card">
     <h3>Response task</h3>
-    <h1>Press the Control key when the dot appears</h1>
-    <p>Throughout the visit, a small white dot will appear now and then at the top of the video. <b>Press the Control key (Ctrl, at the bottom left of your keyboard) as quickly as you can each time you see it. Keep doing this the whole time, including while you read or type.</b></p>
+    <h1>Press the ${KEY} when the dot appears</h1>
+    <p>Throughout the visit, a small white dot will appear now and then at the top of the video. <b>Press the ${KEY} (${KEY_WHERE}) as quickly as you can each time you see it. Keep doing this the whole time, including while you read or type.</b></p>
     <p>You will practice this twice, for 30 seconds each. First you will only watch the screen. Then you will copy a short passage while responding to the dot.</p>
     <div class="actions"><button class="btn" id="go">Start practice 1</button></div>
   </div></div>`);
@@ -783,7 +791,7 @@ function sBaselineWatch() {
   screen("baseline_watch", "Training");
   const n = el(`<div class="col"><div class="card">
     <h3>Practice 1 of 2</h3>
-    <h2>Watch the screen and press the Control key when the dot appears</h2>
+    <h2>Watch the screen and press the ${KEY} when the dot appears</h2>
     ${miniStage("Practice 1")}
     <div class="actions"><button class="btn" id="go" disabled>Continue</button></div>
   </div></div>`);
@@ -801,7 +809,7 @@ function sBaselineType() {
   const passage = "The library opens at nine on weekdays and at ten on Saturdays. Visitors can borrow up to six books at a time and return them at any branch in the city. Study rooms can be reserved online up to one week in advance.";
   const n = el(`<div class="col"><div class="card">
     <h3>Practice 2 of 2</h3>
-    <h2>Copy the passage while pressing the Control key when the dot appears</h2>
+    <h2>Copy the passage while pressing the ${KEY} when the dot appears</h2>
     ${miniStage("Practice 2")}
     <p class="doc">${esc(passage)}</p>
     <div class="field"><label for="copy">Type the passage here</label><textarea id="copy" spellcheck="false" autocomplete="off"></textarea></div>
@@ -827,7 +835,7 @@ function sPracticeIntro() {
     <h3>Practice visit</h3>
     <h1>How documentation works in your visit</h1>
     <p>${INSTR[g]}</p>
-    <p>First, a one-minute practice visit lets you try the screen. <b>Keep pressing the Control key when the dot appears.</b> Nothing from the practice visit is used in the study.</p>
+    <p>First, a one-minute practice visit lets you try the screen. <b>Keep pressing the ${KEY} when the dot appears.</b> Nothing from the practice visit is used in the study.</p>
     <div class="actions"><button class="btn" id="go">Start practice visit</button></div>
   </div></div>`);
   app.append(n);
@@ -879,7 +887,7 @@ function sCaseIntro() {
     <h1>${esc(CASE.intro)}</h1>
     <p>${COMMON_INSTR}</p>
     <p>${INSTR[g]}</p>
-    <p><b>Keep pressing the Control key whenever the dot appears.</b></p>
+    <p><b>Keep pressing the ${KEY} whenever the dot appears.</b></p>
     <div class="actions"><button class="btn" id="go">Go to the visit</button></div>
   </div></div>`);
   app.append(n);
@@ -1213,7 +1221,7 @@ function runVisit(cd, phase, cpSec, rec, onDone) {
   }
 
   /* start overlay */
-  ov.innerHTML = `<div class="big">${phase === "practice" ? "Practice visit" : "Study visit"}</div><div class="sub">Click Start when you are ready. <b>The video plays from start to end and cannot be paused or replayed.</b> Remember to press the Control key whenever the dot appears.</div><button class="btn" id="ovgo">Start</button>`;
+  ov.innerHTML = `<div class="big">${phase === "practice" ? "Practice visit" : "Study visit"}</div><div class="sub">Click Start when you are ready. <b>The video plays from start to end and cannot be paused or replayed.</b> Remember to press the ${KEY} whenever the dot appears.</div><button class="btn" id="ovgo">Start</button>`;
   $("#ovgo", ov).onclick = () => {
     ov.hidden = true; rec.visit_start_ms = now(); log("visit_start", { phase });
     if (selfTA) selfTA.focus();
