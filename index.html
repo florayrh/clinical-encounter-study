@@ -1,0 +1,1490 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<style>html{color-scheme:light}body{margin:0;font:14px system-ui,-apple-system,"Segoe UI",sans-serif}img{max-width:100%}</style>
+<title>Clinical Encounter Study</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&display=swap">
+<style>
+/* Layout: a single form column for every survey step, a two-pane visit screen (video stage + note panel) for the encounter */
+:root{
+  --bg:#f5f5f3; --surface:#ffffff; --ink:#141414; --muted:#5f5f5c; --line:#d5d5d1; --fill:#ebebe8; --focus:#141414;
+  --stage:#161616; --stage-2:#222221; --stage-ink:#f3f3f1; --stage-muted:#9b9b97; --stage-line:#3c3c3a; --overlay:rgba(16,16,16,.94);
+  --sans:"Public Sans","Helvetica Neue",Arial,sans-serif;
+  --serif:"Source Serif 4",Georgia,"Times New Roman",serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --r:6px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#111110; --surface:#1a1a19; --ink:#ededeb; --muted:#a3a3a0; --line:#353533; --fill:#242423; --focus:#ededeb;
+    --stage:#050505; --stage-2:#171716; --stage-ink:#f3f3f1; --stage-muted:#8f8f8b; --stage-line:#343432; --overlay:rgba(5,5,5,.94);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#111110; --surface:#1a1a19; --ink:#ededeb; --muted:#a3a3a0; --line:#353533; --fill:#242423; --focus:#ededeb;
+  --stage:#050505; --stage-2:#171716; --stage-ink:#f3f3f1; --stage-muted:#8f8f8b; --stage-line:#343432; --overlay:rgba(5,5,5,.94);
+  color-scheme:dark;
+}
+[hidden]{display:none!important}
+html,body{background:var(--bg);color:var(--ink)}
+body{font-family:var(--sans);font-size:15px;line-height:1.55}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.top-in{max-width:1180px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:10px 16px;padding-block:12px;flex-wrap:wrap}
+.brand{font-family:var(--serif);font-weight:600;font-size:1.05rem}
+.steps{display:flex;gap:4px;list-style:none;margin:0;padding:0;flex-wrap:wrap}
+.steps li{font-size:.7rem;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);padding:3px 9px;border-radius:99px}
+.steps li.done{color:var(--ink)}
+.steps li.cur{color:var(--bg);background:var(--ink)}
+main{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 72px}
+.col{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+.wide{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+h1{font-family:var(--serif);font-weight:600;font-size:1.7rem;line-height:1.2;margin:0;text-wrap:balance}
+h2{font-family:var(--serif);font-weight:600;font-size:1.2rem;line-height:1.3;margin:0;text-wrap:balance}
+h3{font-size:.74rem;letter-spacing:.09em;text-transform:uppercase;margin:0;color:var(--muted);font-weight:600}
+p{margin:0}
+ul{margin:0;padding-left:20px}
+.lede{color:var(--muted)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:22px;display:flex;flex-direction:column;gap:16px;min-width:0}
+.btn{font:inherit;font-weight:600;background:var(--ink);color:var(--bg);border:1px solid var(--ink);border-radius:var(--r);padding:10px 18px;cursor:pointer}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+.btn.ghost{background:transparent;color:var(--ink)}
+.btn.sm{padding:5px 11px;font-size:.84rem}
+a.btn{text-decoration:none;display:inline-block}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.actions{display:flex;justify-content:flex-end;gap:12px;flex-wrap:wrap;align-items:center}
+.field{display:flex;flex-direction:column;gap:7px;min-width:0}
+.field>label,.qtext{font-weight:600}
+.hint{font-size:.85rem;color:var(--muted);font-weight:400}
+input[type=text],input[type=number],select,textarea{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:8px 10px;width:100%;box-sizing:border-box}
+textarea{resize:vertical;min-height:84px}
+.opts{display:flex;flex-direction:column;gap:6px}
+.opt{display:flex;gap:10px;align-items:flex-start;padding:8px 11px;border:1px solid var(--line);border-radius:4px;cursor:pointer}
+.opt input{margin-top:5px;accent-color:var(--ink)}
+.opt:has(input:checked){border-color:var(--ink)}
+.likert{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.likert label{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:6px;font-size:.78rem;line-height:1.25;text-align:center;border:1px solid var(--line);border-radius:4px;padding:8px 4px;cursor:pointer;min-width:0}
+@media (max-width:700px){.likert{grid-template-columns:minmax(0,1fr)}.likert label{flex-direction:row;text-align:left;padding:8px 10px;font-size:.88rem}}
+.likert label:has(input:checked){border-color:var(--ink);background:var(--fill)}
+.likert input{accent-color:var(--ink)}
+.ends{display:flex;justify-content:space-between;gap:12px;font-size:.78rem;color:var(--muted)}
+.err{font-size:.88rem;font-weight:600;border-left:3px solid var(--ink);padding-left:10px}
+.notice{font-size:.85rem;color:var(--muted);border:1px dashed var(--line);border-radius:var(--r);padding:10px 14px}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.doc{font-family:var(--mono);font-size:.84rem;line-height:1.6;white-space:pre-wrap;background:var(--fill);border-radius:4px;padding:14px;overflow-x:auto}
+.split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+@media (max-width:640px){.split{grid-template-columns:minmax(0,1fr)}}
+.dxblock{border-top:1px solid var(--line);padding-top:14px;display:flex;flex-direction:column;gap:10px}
+.range-row{display:grid;grid-template-columns:minmax(0,1fr) 3ch;gap:12px;align-items:center}
+input[type=range]{width:100%;accent-color:var(--ink)}
+/* visit */
+.visit{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:920px){.visit{grid-template-columns:minmax(0,1fr)}}
+.stage{position:relative;aspect-ratio:16/9;max-width:100%;background:var(--stage);color:var(--stage-ink);border-radius:var(--r);overflow:hidden;display:flex;flex-direction:column;user-select:none}
+.speakers{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:3%;padding:8% 6% 0;min-height:0}
+.spk{border:1px solid var(--stage-line);border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;background:var(--stage-2);transition:border-color .2s;min-height:0}
+.spk.on{border:2px solid var(--stage-ink)}
+.avatar{width:clamp(36px,6vw,58px);aspect-ratio:1;border-radius:50%;border:1.5px solid var(--stage-muted);display:grid;place-items:center;font-family:var(--serif);font-size:clamp(.9rem,1.6vw,1.2rem)}
+.spk .nm{font-weight:600;font-size:clamp(.75rem,1.3vw,.92rem)}
+.spk .rl{font-size:.68rem;color:var(--stage-muted);letter-spacing:.08em;text-transform:uppercase}
+.caption{min-height:4.4em;padding:12px 6% 16px;font-size:clamp(.82rem,1.55vw,1.08rem);line-height:1.45;display:flex;align-items:center}
+.caption b{font-weight:600;margin-right:.45em}
+.badge{position:absolute;top:12px;right:14px;font-size:.68rem;letter-spacing:.07em;text-transform:uppercase;display:flex;align-items:center;gap:6px}
+.badge i{width:8px;height:8px;border-radius:50%;background:var(--stage-ink);animation:blink 1.6s infinite}
+@keyframes blink{50%{opacity:.25}}
+.drt-dot{position:absolute;top:12px;left:50%;width:18px;height:18px;margin-left:-9px;border-radius:50%;background:var(--stage-ink);opacity:0;pointer-events:none}
+.drt-dot.on{opacity:1}
+.overlay{position:absolute;inset:0;background:var(--overlay);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:24px;color:var(--stage-ink)}
+.overlay .big{font-family:var(--serif);font-size:clamp(1.05rem,2.2vw,1.45rem)}
+.overlay .sub{color:var(--stage-muted);max-width:44ch;font-size:.9rem}
+.overlay .btn{background:var(--stage-ink);color:var(--stage);border-color:var(--stage-ink)}
+.fix{flex:1;display:grid;place-items:center;font-family:var(--mono);font-size:2rem;color:var(--stage-muted)}
+.track{height:4px;background:var(--line);border-radius:2px;position:relative;margin-top:10px;overflow:visible}
+.track .fill{position:absolute;inset:0 auto 0 0;width:0;background:var(--ink);border-radius:2px}
+.track .tick{position:absolute;top:-3px;width:2px;height:10px;background:var(--muted)}
+.under{display:flex;justify-content:space-between;gap:12px;font-size:.8rem;color:var(--muted);margin-top:6px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);display:flex;flex-direction:column;min-height:440px;max-height:80vh;min-width:0}
+.panel-h{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);gap:8px}
+.panel-h .t{font-weight:600}
+.panel-h .s{font-size:.72rem;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.panel-b{padding:16px;overflow:auto;flex:1;display:flex;flex-direction:column;gap:14px}
+.panel textarea{flex:1;min-height:360px;font-family:var(--mono);font-size:.84rem;line-height:1.55}
+.note-sec h4{margin:0 0 4px;font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.note-sec ul{padding-left:18px;font-size:.9rem;display:flex;flex-direction:column;gap:3px}
+.tag{font-size:.62rem;border:1px solid var(--ink);border-radius:3px;padding:0 4px;margin-left:6px;letter-spacing:.06em;text-transform:uppercase;vertical-align:1px;white-space:nowrap}
+.ritem{border:1px solid var(--line);border-radius:4px;padding:10px 12px;display:flex;flex-direction:column;gap:8px;font-size:.9rem}
+.ritem.done{background:var(--fill)}
+.ritem .st{font-size:.7rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+.ritem .row{display:flex;gap:8px;flex-wrap:wrap}
+.empty{color:var(--muted);font-size:.9rem;margin:auto;text-align:center;max-width:30ch}
+.example{border:1px solid var(--line);border-radius:4px}
+.example .eh{padding:8px 14px;border-bottom:1px solid var(--line);font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.example .doc{background:transparent}
+table.sum{border-collapse:collapse;width:100%;font-size:.86rem}
+table.sum th,table.sum td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+table.sum th{font-weight:600;color:var(--muted);font-size:.74rem;letter-spacing:.06em;text-transform:uppercase}
+.tablewrap{overflow-x:auto}
+details summary{cursor:pointer;font-weight:600}
+.recbar{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:4px;padding:9px 12px;font-size:.88rem}
+.recbar .recdot{width:10px;height:10px;border-radius:50%;border:1.5px solid var(--ink);flex:none}
+.recbar.on .recdot{background:var(--ink);animation:blink 1.6s infinite}
+.recbar.off{color:var(--muted)}
+.recbar .rectime{margin-left:auto}
+.groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.gbtn{font:inherit;text-align:left;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;cursor:pointer;display:flex;flex-direction:column;gap:4px}
+.gbtn:hover{border-color:var(--ink)}
+.gbtn .gk{font-family:var(--mono);font-size:.8rem;color:var(--muted)}
+.gbtn .gl{font-weight:600}
+.gbtn .gd{font-size:.84rem;color:var(--muted)}
+.wc{font-size:.8rem;color:var(--muted);text-align:right}
+@media (prefers-reduced-motion:reduce){.recbar.on .recdot{animation:none}.badge i{animation:none}.track .fill{transition:none!important}.spk{transition:none}}
+</style>
+
+</head>
+<body>
+<header class="top">
+  <div class="top-in">
+    <div class="brand">Clinical Encounter Study</div>
+    <ol class="steps" id="steps"></ol>
+  </div>
+</header>
+<main id="app"></main>
+
+<script>
+(() => {
+"use strict";
+
+/* ============================================================
+   STUDY CONFIGURATION: fill these in before sending the link
+   ============================================================ */
+const CONFIG = {
+  ENDPOINT: "https://script.google.com/macros/s/AKfycbzWAb3N5umDQ7WS7TUMLxSnTIve40dYqazpqk-gJ3erExmmRmmVOtnH-3bBSST5iEB-/exec",  // Google Apps Script web app URL
+  GIFT_CARD_FORM_URL: "",     // separate form for the gift card, not linked to responses
+  CONTACT_EMAIL: "",          // shown on the consent and debrief pages
+  IRB_PROTOCOL: ""            // shown on the consent page
+};
+
+/* ---------- URL parameters ----------
+   ?pid=ABC123   participant ID (optional, otherwise generated)
+   ?src=penn     recruitment source label (optional)
+   ?test=1       test mode: not counted in group balancing, shows the data panel at the end
+   ?test=1&g=G3  test mode with a fixed group
+   ?test=1&fast=1  test mode with all timers 8x faster
+   ?test=1&endpoint=URL  test against another backend */
+const QS = new URLSearchParams(location.search);
+const TEST = QS.get("test") === "1";
+if (TEST && QS.get("endpoint")) CONFIG.ENDPOINT = QS.get("endpoint");
+const cleanId = v => (v || "").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 40);
+
+/* ---------- settings ---------- */
+const FAST = TEST && (QS.get("fast") === "1" || location.hash === "#fast");
+const SPEED = FAST ? 8 : 1;
+const CP_SECONDS = 30;                              // checkpoint length, equal across conditions
+const PRACTICE_CP_SECONDS = 20;
+const BASELINE_SECONDS = 30;
+const T0 = performance.now();
+const now = () => Math.round(performance.now() - T0);
+
+const SECTIONS = ["Consent", "Background", "Training", "Visit", "Questions", "Finish"];
+
+const CONDITIONS = {
+  G1: { label: "Concurrent self-documentation", documenter: "self", note_visible_during_visit: true, interactive: false },
+  G2: { label: "Deferred self-documentation", documenter: "self", note_visible_during_visit: false, interactive: false },
+  G3: { label: "AI scribe, draft not shown", documenter: "ai", note_visible_during_visit: false, interactive: false },
+  G4: { label: "AI scribe, draft shown", documenter: "ai", note_visible_during_visit: true, interactive: false },
+  G5: { label: "AI scribe, interactive confirmation", documenter: "ai", note_visible_during_visit: true, interactive: true }
+};
+
+/* ---------- stimulus content ---------- */
+const NOTE_SECTIONS = ["Chief complaint", "History of present illness", "Pertinent history", "Recent travel and activity", "Medications", "Allergies", "Vitals"];
+const NOTE_TEMPLATE = "Chief complaint:\n\nHistory of present illness:\n\nPertinent history:\n\nMedications:\n\nAllergies:\n\nVitals:\n\nAssessment and plan:\n";
+
+const CASE = {
+  id: "chest-pain-01",
+  reference_diagnosis: "Pulmonary embolism",
+  patient: { name: "Dana Reyes", initials: "DR", label: "Patient, 34" },
+  intro: "Dana Reyes, 34, is a new patient at your primary care clinic.",
+  segments: [
+    [
+      ["D", "Good morning, Ms. Reyes. What brings you in today?"],
+      ["P", "Hi. I've had this chest pain for about four days now. It comes and goes. I figured it was my reflux acting up again, but it hasn't gone away."],
+      ["D", "I'm sorry to hear that. Where exactly do you feel it?"],
+      ["P", "Mostly here, on the right side of my chest, under the breast. Sometimes it's sharp."],
+      ["D", "You mentioned reflux. Have you had that before?"],
+      ["P", "On and off for years. Usually after spicy food or coffee. And I had a lot of both last week. My sister and I ate out every night."],
+      ["D", "Oh, were you traveling?"],
+      ["P", "I drove down to Savannah to help her move into her new place. About nine hours each way. I got back last Sunday."],
+      ["D", "That's a long drive. How did the move go?"],
+      ["P", "Exhausting. Lots of boxes and lots of stairs. Her new apartment is on the third floor, of course. But the city is beautiful. We walked along the river one evening."],
+      ["D", "Sounds like it was partly a nice break. Are you taking any medications right now?"],
+      ["P", "Just omeprazole when the reflux is bad. And my birth control pill. That's it."],
+      ["D", "Any allergies to medications?"],
+      ["P", "No, none."]
+    ],
+    [
+      ["D", "Let's go back to the pain. Does anything make it worse?"],
+      ["P", "Taking a deep breath, actually. If I yawn or take a big breath, it catches right here."],
+      ["D", "Is it worse after you eat, or when you lie down?"],
+      ["P", "Maybe a little after dinner. I'm not sure. It's hard to tell."],
+      ["D", "Does the pain spread anywhere, like your arm, your jaw, or your back?"],
+      ["P", "No, it stays in one spot."],
+      ["D", "Any fever, cough, or cold symptoms?"],
+      ["P", "No fever. I coughed a little yesterday, but nothing much."],
+      ["D", "How has work been? Anything stressful going on?"],
+      ["P", "Work is a lot right now. We have a big deadline at the end of the month, and I haven't been sleeping well. I had a couple of panic attacks in college, so part of me wonders if it's that."],
+      ["D", "That's helpful to know. Any other aches or pains since the trip?"],
+      ["P", "My left calf has been sore, but I think that's from carrying boxes up all those stairs. It feels tight when I walk."],
+      ["D", "Have you noticed any swelling in that leg?"],
+      ["P", "Maybe a little around the ankle by the end of the day. I didn't think much of it."]
+    ],
+    [
+      ["D", "Have you been short of breath at all?"],
+      ["P", "Now that you mention it, yes. Yesterday I had to stop halfway up the stairs at my office. That's not like me. I run three times a week."],
+      ["D", "Have you felt your heart racing?"],
+      ["P", "A little. I assumed it was the coffee."],
+      ["D", "Have you or anyone in your family had blood clots?"],
+      ["P", "Not that I know of. My mom had some problem with the veins in her leg after a surgery once, but I don't know the details."],
+      ["D", "Okay. The nurse checked your vital signs before I came in. Your temperature is 37.4, your heart rate is 108, and your oxygen level is 94 percent. Your blood pressure is normal."],
+      ["P", "Is 94 bad? I always thought it should be close to 100."],
+      ["D", "It's a little lower than I'd expect for you. I'd like to look into this further today."],
+      ["P", "Okay. I'm glad I came in, then. My sister kept telling me it was nothing."],
+      ["D", "Before we finish, is there anything else you've noticed?"],
+      ["P", "I don't think so. Oh, my cat knocked over my coffee this morning, so I haven't had any caffeine today. That's probably why I'm a little shaky."]
+    ]
+  ],
+  // AI draft items released at each checkpoint (cp1, cp2) and after the visit (final)
+  items: [
+    [
+      { id: "i01", after: 1, sec: "Chief complaint", text: "Intermittent chest pain for 4 days." },
+      { id: "i02", after: 3, sec: "History of present illness", text: "Pain on the right side of the chest, below the breast. Sometimes sharp." },
+      { id: "i03", after: 5, sec: "Pertinent history", text: "Reflux for several years, triggered by spicy food and coffee. Increased intake of both last week. Patient attributes current pain to reflux." },
+      { id: "i04", after: 9, sec: "Recent travel and activity", text: "Drove to Savannah to help sister move, about 9 hours each way. Returned last Sunday. Carried boxes and climbed stairs during the move." },
+      { id: "i05", after: 11, sec: "Medications", text: "Omeprazole as needed.", seeded: "omission: oral contraceptive pill not documented" },
+      { id: "i06", after: 13, sec: "Allergies", text: "No known drug allergies." }
+    ],
+    [
+      { id: "i07", after: 1, sec: "History of present illness", text: "Pain worse with deep inspiration and yawning." },
+      { id: "i08", after: 3, sec: "History of present illness", text: "Unclear relationship to meals. Possibly slightly worse after dinner." },
+      { id: "i09", after: 5, sec: "History of present illness", text: "No radiation to arm, jaw, or back." },
+      { id: "i10", after: 7, sec: "History of present illness", text: "No fever. Mild cough yesterday." },
+      { id: "i11", after: 9, sec: "Pertinent history", text: "Work stress with an upcoming deadline. Poor sleep. History of panic attacks in college." },
+      { id: "i12", after: 13, sec: "History of present illness", text: "Right calf soreness, attributed by patient to carrying boxes. Tightness with walking. Possible mild ankle swelling at end of day.", seeded: "error: laterality (patient reported left calf)" }
+    ],
+    [
+      { id: "i13", after: 1, sec: "History of present illness", text: "Exertional shortness of breath. Had to stop halfway up stairs at work yesterday. Runs three times a week at baseline." },
+      { id: "i14", after: 3, sec: "History of present illness", text: "Palpitations, attributed by patient to coffee." },
+      { id: "i15", after: 5, sec: "Pertinent history", text: "No known personal history of blood clots. Mother had a leg vein problem after surgery, details unknown." },
+      { id: "i16", after: 6, sec: "Vitals", text: "T 37.4 °C, HR 108, SpO2 94% on room air, BP within normal limits." },
+      { id: "i17", after: 11, sec: "History of present illness", text: "Feels slightly shaky today. No caffeine this morning." }
+    ]
+  ]
+};
+
+const PRACTICE = {
+  id: "practice-ankle",
+  patient: { name: "James Kim", initials: "JK", label: "Patient, 27" },
+  segments: [
+    [
+      ["D", "Hi there. What brings you in today?"],
+      ["P", "I twisted my right ankle playing basketball yesterday."],
+      ["D", "Can you put weight on it?"],
+      ["P", "A little, but it hurts on the outside of the ankle."]
+    ],
+    [
+      ["D", "Any numbness or tingling in your foot?"],
+      ["P", "No, just swelling and some bruising."],
+      ["D", "Okay. Let's take a look."]
+    ]
+  ],
+  items: [
+    [
+      { id: "p01", after: 1, sec: "Chief complaint", text: "Right ankle injury yesterday while playing basketball." },
+      { id: "p02", after: 3, sec: "History of present illness", text: "Able to bear some weight. Pain on the outer side of the ankle." }
+    ],
+    [
+      { id: "p03", after: 1, sec: "History of present illness", text: "No numbness or tingling. Swelling and some bruising." }
+    ]
+  ]
+};
+
+const EXAMPLE_NOTE = "Chief complaint\n- Sore throat for 3 days.\n\nHistory of present illness\n- Sore throat began 3 days ago, worse with swallowing.\n- Reports feeling feverish. No cough or runny nose.\n- Roommate had similar symptoms last week.\n\nMedications\n- None.\n\nAllergies\n- Penicillin (rash).\n\nVitals\n- T 38.3 °C, HR 92.\n\nAssessment and plan\n- To be completed by the clinician.";
+
+const COMMON_INSTR = "You are the clinician in this visit. Watch the encounter closely. The visit is shown in three parts, with a short break between parts. When the visit ends, you will give your diagnostic assessment. The video cannot be paused, rewound, or replayed. You are responsible for the clinical note for this visit and will sign it at the end.";
+const INSTR = {
+  G1: "You will document this visit yourself. Write the clinical note in the panel beside the video while you watch. The visit pauses briefly twice, and you may keep writing during the pauses.",
+  G2: "You will document this visit yourself after it ends. Do not take notes during the visit. After the visit, you will write the full note from memory.",
+  G3: "An ambient AI scribe will listen to this visit and draft the clinical note. The draft is not shown during the visit. After the visit, you will review the AI draft and sign it.",
+  G4: "An ambient AI scribe will listen to this visit and draft the clinical note. The draft appears in the panel beside the video and is updated as the conversation goes on. After the visit, you will review the final draft and sign it.",
+  G5: "An ambient AI scribe will listen to this visit and draft the clinical note. The draft appears in the panel beside the video and is updated as the conversation goes on. At each pause, confirm or correct each new item in the draft before the visit continues. After the visit, you will review the final draft and sign it."
+};
+const PAUSE_MSG = {
+  G1: "You may keep writing your note.",
+  G2: "The next part will start automatically.",
+  G3: "The AI scribe continues recording.",
+  G4: "The draft note stays beside the video.",
+  G5: "Confirm or correct each new item in the draft note."
+};
+
+/* ---------- data record ---------- */
+const D = {
+  study: "Ambient scribe documentation experiment (prototype)",
+  version: "0.1",
+  participant_id: cleanId(QS.get("pid")) || ("P-" + Math.random().toString(36).slice(2, 8).toUpperCase()),
+  pid_from_url: !!cleanId(QS.get("pid")),
+  source: cleanId(QS.get("src")) || null,
+  test_mode: TEST,
+  user_agent: navigator.userAgent,
+  started_at: new Date().toISOString(),
+  fast_mode: FAST,
+  assignment_method: null,
+  condition: null, condition_label: null, factors: null,
+  pre: {}, device: {}, comprehension_attempts: [],
+  screens: [], events: [], drt: [], drt_false_alarms: [],
+  baseline_typing: {},
+  practice: { checkpoints: [] },
+  think_aloud: {},
+  case: { id: CASE.id, reference_diagnosis: CASE.reference_diagnosis, checkpoints: [], self_note: { snapshots: [], keystrokes: {} }, diagnosis: {}, retention: {}, integration: {}, post: {}, final_note: {} },
+  end: {}
+};
+
+/* ---------- think-aloud audio recording ---------- */
+const REC = {
+  stream: null, mr: null, chunks: [], tag: null, started: 0, blobs: {},
+  async start(tag) {
+    try {
+      if (!navigator.mediaDevices || !window.MediaRecorder) throw new Error("unsupported");
+      if (!this.stream) this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      this.chunks = []; this.tag = tag;
+      this.mr = new MediaRecorder(this.stream);
+      this.mr.ondataavailable = e => { if (e.data && e.data.size) this.chunks.push(e.data); };
+      this.mr.start(1000); this.started = now();
+      try {
+        if (!this.ctx) {
+          this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+          const srcNode = this.ctx.createMediaStreamSource(this.stream);
+          this.an = this.ctx.createAnalyser(); this.an.fftSize = 1024;
+          srcNode.connect(this.an); this.buf = new Float32Array(this.an.fftSize);
+        }
+        if (this.ctx.state === "suspended") this.ctx.resume();
+      } catch (_) { this.an = null; }
+      log("recording_start", { tag });
+      return true;
+    } catch (e) { log("recording_unavailable", { tag, error: String(e && e.name || e) }); return false; }
+  },
+  level() {
+    if (!this.an) return null;
+    this.an.getFloatTimeDomainData(this.buf);
+    let sum = 0; for (let i = 0; i < this.buf.length; i++) sum += this.buf[i] * this.buf[i];
+    return Math.sqrt(sum / this.buf.length);
+  },
+  stop() {
+    return new Promise(res => {
+      if (!this.mr || this.mr.state === "inactive") return res(null);
+      const tag = this.tag, t0 = this.started;
+      this.mr.onstop = () => {
+        const blob = new Blob(this.chunks, { type: this.mr.mimeType || "audio/webm" });
+        this.blobs[tag] = blob;
+        const info = { tag, start_ms: t0, end_ms: now(), duration_ms: now() - t0, bytes: blob.size, mime: blob.type };
+        log("recording_stop", info); res(info);
+      };
+      this.mr.stop();
+    });
+  }
+};
+function recBar(id) {
+  return `<div class="recbar" id="${id}"><span class="recdot" aria-hidden="true"></span><span class="rectext">Checking the microphone</span><span class="mono rectime"></span></div>`;
+}
+function wireRecBar(bar, ok) {
+  const txt = $(".rectext", bar), tm = $(".rectime", bar);
+  if (!ok) { bar.classList.add("off"); txt.textContent = "Audio recording is not available in this browser view. In the lab sessions, the experimenter records the think-aloud."; return () => {}; }
+  bar.classList.add("on"); txt.textContent = "Recording. Keep thinking aloud.";
+  const t0 = performance.now();
+  let quiet = 0, reminding = false;
+  const iv = setInterval(() => {
+    tm.textContent = fmt((performance.now() - t0) * SPEED / 1000);
+    const lv = REC.level();
+    if (lv == null) return;
+    quiet = lv < 0.01 ? quiet + 500 : 0;
+    if (quiet >= 8000 && !reminding) {
+      reminding = true; txt.textContent = "Please keep thinking aloud. Say whatever is on your mind.";
+      D.think_aloud.reminders = (D.think_aloud.reminders || 0) + 1; log("think_aloud_reminder", {});
+    } else if (quiet === 0 && reminding) { reminding = false; txt.textContent = "Recording. Keep thinking aloud."; }
+  }, 500);
+  return () => clearInterval(iv);
+}
+
+/* ---------- helpers ---------- */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const app = $("#app");
+function el(h) { const t = document.createElement("template"); t.innerHTML = h.trim(); return t.content.firstElementChild; }
+function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+const rand = (a, b) => a + Math.random() * (b - a);
+function fmt(sec) { sec = Math.max(0, Math.ceil(sec)); return Math.floor(sec / 60) + ":" + String(sec % 60).padStart(2, "0"); }
+function log(type, data = {}) { D.events.push({ at_ms: now(), type, ...data }); }
+function lineDur(text) { const w = text.trim().split(/\s+/).length; return Math.max(2.2, w / 2.8 + 0.7); }
+function radioVal(root, name) { const r = root.querySelector(`input[name="${name}"]:checked`); return r ? r.value : null; }
+function optsHTML(name, options) {
+  return `<div class="opts" role="radiogroup">${options.map(o => `<label class="opt"><input type="radio" name="${name}" value="${esc(o)}"><span>${esc(o)}</span></label>`).join("")}</div>`;
+}
+const AGREE = ["Strongly disagree", "Disagree", "Somewhat disagree", "Neither agree nor disagree", "Somewhat agree", "Agree", "Strongly agree"];
+const CONFIDENCE = ["Not at all confident", "Slightly confident", "Somewhat confident", "Moderately confident", "Quite confident", "Very confident", "Completely confident"];
+const FREQUENCY = ["Never", "Once or twice", "A few times a year", "About once a month", "About once a week", "Several times a week", "Daily"];
+const LOWHIGH = ["Very low", "Low", "Somewhat low", "Moderate", "Somewhat high", "High", "Very high"];
+const PERFORMANCE = ["Perfect", "Very good", "Good", "Fair", "Poor", "Very poor", "Failure"];
+function likertHTML(name, text, labels = AGREE) {
+  let cells = "";
+  labels.forEach((lab, i) => { cells += `<label><input type="radio" name="${name}" value="${i + 1}"><span>${esc(lab)}</span></label>`; });
+  return `<div class="field"><span class="qtext">${esc(text)}</span><div class="likert" role="radiogroup">${cells}</div></div>`;
+}
+function sliderHTML(id, label, left, right) {
+  return `<div class="field"><label for="${id}">${esc(label)}</label><div class="range-row"><input type="range" id="${id}" min="0" max="100" step="5" value="50" data-touched="0"><span class="mono" id="${id}-v">--</span></div><div class="ends"><span>${left}</span><span>${right}</span></div></div>`;
+}
+function wireSliders(root) {
+  $$("input[type=range]", root).forEach(r => {
+    const v = $("#" + r.id + "-v", root);
+    const mark = () => { r.dataset.touched = "1"; v.textContent = r.value; };
+    r.addEventListener("input", mark); r.addEventListener("change", mark); r.addEventListener("pointerup", mark);
+    r.addEventListener("keyup", mark);
+  });
+}
+function setErr(card, msg) {
+  let e = $(".err", card);
+  if (!msg) { if (e) e.remove(); return; }
+  if (!e) { e = el('<p class="err" role="alert"></p>'); $(".actions", card).before(e); }
+  e.textContent = msg;
+}
+
+/* ---------- screen + progress ---------- */
+let cur = null;
+function screen(name, section) {
+  if (cur) cur.end_ms = now();
+  cur = { name, start_ms: now() };
+  D.screens.push(cur);
+  const idx = SECTIONS.indexOf(section);
+  $("#steps").innerHTML = SECTIONS.map((s, i) => `<li class="${i < idx ? "done" : i === idx ? "cur" : ""}"${i === idx ? ' aria-current="step"' : ""}>${s}</li>`).join("");
+  app.innerHTML = "";
+  window.scrollTo(0, 0);
+}
+
+/* ---------- detection response task ---------- */
+const DRT = {
+  phase: null, seg: null, dot: null, t1: 0, t2: 0, t3: 0, pending: null, n: 0,
+  start(phase, dot, seg = null) {
+    this.stop(); this.phase = phase; this.dot = dot; this.seg = seg;
+    this.sched(rand(3000, 5000));
+  },
+  sched(designMs) { clearTimeout(this.t1); this.t1 = setTimeout(() => this.show(), designMs / SPEED); },
+  show() {
+    if (!this.phase || !this.dot) return;
+    this.dot.classList.add("on");
+    this.pending = { phase: this.phase, segment: this.seg, trial: ++this.n, onset_ms: now(), _on: performance.now() };
+    this.t2 = setTimeout(() => this.dot && this.dot.classList.remove("on"), 1000);
+    this.t3 = setTimeout(() => this.resolve(null, null, "miss"), 2500);
+  },
+  resolve(rt, target, outcome) {
+    const p = this.pending; if (!p) return;
+    this.pending = null; clearTimeout(this.t2); clearTimeout(this.t3);
+    if (this.dot) this.dot.classList.remove("on");
+    D.drt.push({ phase: p.phase, segment: p.segment, trial: p.trial, onset_ms: p.onset_ms, rt_ms: rt == null ? null : Math.round(rt), outcome, response_target: target });
+    if (this.phase && outcome !== "truncated") {
+      const elapsedDesign = (performance.now() - p._on) * SPEED;
+      this.sched(Math.max(500, rand(3000, 5000) - elapsedDesign));
+    }
+  },
+  press(e) {
+    if (!this.phase) return;
+    const tag = (e.target && e.target.tagName || "").toLowerCase();
+    const inText = tag === "textarea" || (tag === "input" && /^(text|number|search)$/i.test(e.target.type || "text"));
+    if (!inText) e.preventDefault();                 // no page scroll or button activation; spaces still type in text fields
+    const target = inText ? "text_field" : "page";   // text_field = the space may also be a typed word break (G1, typing baseline)
+    if (this.pending) {
+      const rt = performance.now() - this.pending._on;
+      if (rt < 100) { D.drt_false_alarms.push({ phase: this.phase, segment: this.seg, at_ms: now(), kind: "anticipation", target }); return; }
+      this.resolve(rt, target, "hit");
+    } else {
+      D.drt_false_alarms.push({ phase: this.phase, segment: this.seg, at_ms: now(), kind: "no_stimulus", target });
+    }
+  },
+  stop() {
+    clearTimeout(this.t1);
+    if (this.pending) this.resolve(null, null, "truncated");
+    clearTimeout(this.t2); clearTimeout(this.t3);
+    if (this.dot) this.dot.classList.remove("on");
+    this.phase = null; this.seg = null;
+  }
+};
+document.addEventListener("keydown", e => { if ((e.code === "Space" || e.key === " ") && !e.repeat) DRT.press(e); }, true);
+
+/* ---------- environment logging ---------- */
+document.addEventListener("visibilitychange", () => log("visibility", { state: document.visibilityState, screen: cur && cur.name }));
+window.addEventListener("blur", () => log("window_blur", { screen: cur && cur.name }));
+window.addEventListener("focus", () => log("window_focus", { screen: cur && cur.name }));
+document.addEventListener("fullscreenchange", () => log("fullscreen", { on: !!document.fullscreenElement }));
+
+/* ---------- downloads capability ---------- */
+let downloads = null;
+
+/* ======================================================================
+   FLOW
+   ====================================================================== */
+const FLOW = [sConsent, sDevice, sPre, sIntro, sThinkAloud, sDrtIntro, sBaselineWatch, sBaselineType, sAssign, sPracticeIntro, sPractice, sCaseIntro, sVisit, sDiagnosis, sRecall, sSummary, sPost, sEnd, sUpload, sDebrief];
+let step = -1;
+function next() { step++; FLOW[step](); }
+
+/* Group assignment: balanced across the five groups by the backend */
+async function sAssign() {
+  screen("assignment", "Training");
+  app.append(el(`<div class="col"><div class="card"><h3>One moment</h3><h1>Preparing your visit</h1><p class="lede">This takes a few seconds.</p></div></div>`));
+  const keys = Object.keys(CONDITIONS);
+  let g = null, method = null;
+  const forced = (QS.get("g") || "").toUpperCase();
+  if (TEST && keys.includes(forced)) { g = forced; method = "test_fixed"; }
+  if (!g && CONFIG.ENDPOINT) {
+    for (let attempt = 0; attempt < 3 && !g; attempt++) {
+      try {
+        const r = await fetch(`${CONFIG.ENDPOINT}?action=assign&pid=${encodeURIComponent(D.participant_id)}&test=${TEST ? 1 : 0}`);
+        const j = await r.json();
+        if (j && keys.includes(j.group)) { g = j.group; method = "backend_balanced"; }
+      } catch (e) { log("assign_error", { attempt, error: String(e) }); await new Promise(r => setTimeout(r, 1500)); }
+    }
+  }
+  if (!g) { g = keys[Math.floor(Math.random() * keys.length)]; method = "fallback_local_random"; }
+  D.condition = g; D.condition_label = CONDITIONS[g].label; D.factors = CONDITIONS[g]; D.assignment_method = method;
+  log("assigned", { condition: g, method });
+  next();
+}
+
+/* 1. Consent */
+function sConsent() {
+  screen("consent", "Consent");
+  const n = el(`<div class="col">
+    ${TEST ? `<p class="notice">Test mode. This session is not counted in group balancing.</p>` : ""}
+    <div class="card">
+      <h3>Information and consent</h3>
+      <h1>Diagnosing from a recorded patient visit</h1>
+      <p>Researchers at the Fox School of Business, Temple University, are studying how clinicians gather and use information during patient visits. You will watch one simulated primary care visit, give your diagnostic assessment, and answer questions about the visit. The study takes about 30 minutes. Please use a laptop or desktop computer with a microphone, in a quiet place.</p>
+      <p>We record your answers, what you type, when you click, how quickly you respond to an on-screen signal, and whether you leave this page. While you work out your diagnosis, we audio-record you thinking aloud. The microphone is used only during that step and a short practice. We do not record video of you. Your responses and audio are stored without your name in a secure account managed by the research team and are used only for this research.</p>
+      <p>Taking part is voluntary. You may stop at any time by closing this page. After you finish, you will get a link to a separate form for your gift card. That form is not linked to your answers.</p>
+      <p class="hint">${CONFIG.IRB_PROTOCOL ? `Temple University IRB protocol ${esc(CONFIG.IRB_PROTOCOL)}. ` : ""}${CONFIG.CONTACT_EMAIL ? `Questions: ${esc(CONFIG.CONTACT_EMAIL)}` : ""}</p>
+      <label class="opt"><input type="checkbox" id="agree"><span>I have read this information and I agree to take part.</span></label>
+      <div class="actions"><button class="btn" id="go">Continue</button></div>
+    </div></div>`);
+  app.append(n);
+  $("#go").onclick = () => {
+    if (!$("#agree").checked) return setErr($(".card", n), "Please check the box to agree before continuing.");
+    D.consent = { agreed: true, at_ms: now() };
+    next();
+  };
+}
+
+/* 2. Background */
+function sPre() {
+  screen("pre_survey", "Background");
+  const n = el(`<div class="col"><div class="card">
+    <h3>About you</h3>
+    <h1>Your clinical background</h1>
+    <div class="field"><label for="role">Current role</label>
+      <select id="role"><option value="">Select</option><option>Medical student, year 3</option><option>Medical student, year 4</option><option>Resident</option><option>Fellow</option><option>Attending physician</option><option>Nurse practitioner or physician assistant</option><option>Other</option></select></div>
+    <div class="field"><label for="years">Years of clinical practice after medical school <span class="hint">(enter 0 if you are a student)</span></label>
+      <input type="number" id="years" min="0" max="60" step="1" inputmode="numeric"></div>
+    <div class="field"><label for="spec">Specialty</label>
+      <select id="spec"><option value="">Select</option><option>Internal medicine</option><option>Family medicine</option><option>Emergency medicine</option><option>Pediatrics</option><option>Obstetrics and gynecology</option><option>Surgery</option><option>Psychiatry</option><option>Not yet chosen</option><option>Other</option></select></div>
+    <div class="field"><label for="age">What is your age? <span class="hint">(in years)</span></label>
+      <input type="number" id="age" min="18" max="99" step="1" inputmode="numeric"></div>
+    ${likertHTML("scribe_use", "How often do you use an ambient AI scribe in your clinical work?", FREQUENCY)}
+    <div class="dxblock"><h3>AI attitude (Grassini 2023)</h3></div>
+    ${likertHTML("ai1", "I believe that AI will improve my life.")}
+    ${likertHTML("ai2", "I believe that AI will improve my work.")}
+    ${likertHTML("ai3", "I think I will use AI technology in the future.")}
+    ${likertHTML("ai4", "I think AI technology is positive for humanity.")}
+    <div class="dxblock"><h3>Personal innovativeness with IT (Agarwal and Prasad 1998)</h3></div>
+    ${likertHTML("piit1", "If I heard about a new information technology, I would look for ways to experiment with it.")}
+    ${likertHTML("piit2", "Among my peers, I am usually the first to try out new information technologies.")}
+    ${likertHTML("piit3", "I like to experiment with new information technologies.")}
+    <div class="actions"><button class="btn" id="go">Continue</button></div>
+  </div></div>`);
+  app.append(n);
+  $("#go").onclick = () => {
+    const c = $(".card", n);
+    const v = {
+      role: $("#role").value, years_clinical: $("#years").value, specialty: $("#spec").value, age: $("#age").value,
+      scribe_use_1to7: radioVal(c, "scribe_use"),
+      ai_attitude_1: radioVal(c, "ai1"), ai_attitude_2: radioVal(c, "ai2"), ai_attitude_3: radioVal(c, "ai3"), ai_attitude_4: radioVal(c, "ai4"),
+      piit_1: radioVal(c, "piit1"), piit_2: radioVal(c, "piit2"), piit_3: radioVal(c, "piit3")
+    };
+    const missing = Object.entries(v).filter(([, x]) => x === "" || x == null);
+    if (missing.length) return setErr(c, "Please answer every question before continuing.");
+    const age = Number(v.age);
+    if (!Number.isInteger(age) || age < 18 || age > 99) return setErr(c, "Please enter your age as a whole number between 18 and 99.");
+    Object.keys(v).forEach(k => { if (k !== "role" && k !== "specialty") v[k] = Number(v[k]); });
+    v.ai_attitude_mean = (v.ai_attitude_1 + v.ai_attitude_2 + v.ai_attitude_3 + v.ai_attitude_4) / 4;
+    v.piit_mean = (v.piit_1 + v.piit_2 + v.piit_3) / 3;
+    D.pre = v; next();
+  };
+}
+
+/* 3. Device check */
+function sDevice() {
+  screen("device_check", "Training");
+  const w = window.innerWidth, h = window.innerHeight;
+  D.device = { viewport_w: w, viewport_h: h, user_agent: navigator.userAgent, touch: matchMedia("(pointer: coarse)").matches };
+  D.device.media_recorder = !!(navigator.mediaDevices && window.MediaRecorder);
+  const ok = w >= 900 && !D.device.touch;
+  const n = el(`<div class="col"><div class="card">
+    <h3>Before you start</h3>
+    <h1>Set up your screen</h1>
+    <p>This study works best on a laptop or desktop computer with a mouse or trackpad. Please close other tabs and silence notifications. Full screen keeps distractions out.</p>
+    ${ok && D.device.media_recorder ? "" : `<p class="err">${!ok ? "This screen looks like a phone or tablet. Please open this link on a laptop or desktop computer." : "This browser cannot record audio. Please open this link in a current version of Chrome, Edge or Firefox."}</p>`}
+    <div class="actions"><button class="btn ghost" id="fs">Enter full screen</button><button class="btn" id="go">Continue</button></div>
+  </div></div>`);
+  app.append(n);
+  if (!(ok && D.device.media_recorder) && !TEST) { $("#go").disabled = true; log("device_blocked", { w, h }); }
+  $("#fs").onclick = async () => {
+    try { await document.documentElement.requestFullscreen(); D.device.fullscreen = true; $("#fs").textContent = "Full screen on"; $("#fs").disabled = true; }
+    catch (_) { D.device.fullscreen = false; $("#fs").textContent = "Full screen is not available here"; $("#fs").disabled = true; }
+  };
+  $("#go").onclick = next;
+}
+
+/* 4. Ambient AI introduction + comprehension check */
+function sIntro() {
+  screen("ai_intro_comprehension", "Training");
+  const n = el(`<div class="col">
+    <div class="card">
+      <h3>Background</h3>
+      <h1>What an ambient AI scribe does</h1>
+      <p>An ambient AI scribe listens to the conversation between a clinician and a patient and drafts the clinical note. It picks out the relevant information and organizes it into note sections such as the history of present illness, medications, and allergies.</p>
+      <p>In this study, the scribe drafts the history sections only. It does not suggest a diagnosis or a treatment plan. The clinician reviews the draft, corrects it if needed, and signs it.</p>
+      <div class="example"><div class="eh">Example draft from a different patient</div><div class="doc">${esc(EXAMPLE_NOTE)}</div></div>
+    </div>
+    <div class="card" id="cc">
+      <h3>Check your understanding</h3>
+      <div class="field"><span class="qtext">1. What does the ambient AI scribe do during a visit?</span>
+        ${optsHTML("q1", ["Suggests a diagnosis to the clinician", "Listens to the conversation and drafts a clinical note", "Answers the patient's questions"])}</div>
+      <div class="field"><span class="qtext">2. Does the AI scribe in this study include a diagnosis in the note?</span>
+        ${optsHTML("q2", ["Yes, it lists the most likely diagnosis", "No, the assessment and plan are left to the clinician"])}</div>
+      <div class="field"><span class="qtext">3. Who signs the final note?</span>
+        ${optsHTML("q3", ["The AI scribe", "The patient", "The clinician"])}</div>
+      <div class="actions"><button class="btn" id="go">Check answers</button></div>
+    </div></div>`);
+  app.append(n);
+  const KEY = { q1: "Listens to the conversation and drafts a clinical note", q2: "No, the assessment and plan are left to the clinician", q3: "The clinician" };
+  $("#go").onclick = () => {
+    const c = $("#cc");
+    const a = { q1: radioVal(c, "q1"), q2: radioVal(c, "q2"), q3: radioVal(c, "q3") };
+    if (!a.q1 || !a.q2 || !a.q3) return setErr(c, "Please answer all three questions.");
+    const correct = Object.keys(KEY).every(k => a[k] === KEY[k]);
+    D.comprehension_attempts.push({ at_ms: now(), answers: a, correct });
+    if (!correct) return setErr(c, "At least one answer is incorrect. Read the description above again and change your answers.");
+    next();
+  };
+}
+
+/* 4b. Think-aloud training + microphone check */
+function sThinkAloud() {
+  screen("think_aloud_training", "Training");
+  const n = el(`<div class="col"><div class="card">
+    <h3>Thinking aloud</h3>
+    <h1>Say what you are thinking</h1>
+    <p>After the visit, you will work out your diagnosis while thinking aloud. Say everything that goes through your mind, as it comes, even if it seems unimportant or incomplete. You do not need to explain or justify your thoughts to us. Just keep talking. If you go quiet, the screen will remind you to keep talking.</p>
+    <p>Let's practice once. Click Start practice, then think aloud while you answer this question:</p>
+    <p class="doc">How many windows are there in the place where you live?</p>
+    ${recBar("tabar")}
+    <div class="actions"><button class="btn ghost" id="tastart">Start practice</button><button class="btn" id="go" disabled>Continue</button></div>
+  </div></div>`);
+  app.append(n);
+  let stopTimer = () => {};
+  let fails = 0;
+  $("#tastart").onclick = async () => {
+    $("#tastart").disabled = true;
+    const ok = await REC.start("practice");
+    D.think_aloud.recording_available = ok;
+    if (!ok) {
+      fails++;
+      D.think_aloud.mic_failures = fails;
+      const bar = $("#tabar"); bar.classList.add("off");
+      $(".rectext", bar).textContent = "We could not use your microphone. Click the microphone or lock icon in the address bar, allow the microphone for this page, then click Try again.";
+      $("#tastart").disabled = false; $("#tastart").textContent = "Try again";
+      if (fails >= 2) { $("#go").disabled = false; $("#go").textContent = "Continue without recording"; }
+      return;
+    }
+    stopTimer = wireRecBar($("#tabar"), ok);
+    setTimeout(() => { $("#go").disabled = false; $("#go").textContent = "Continue"; $("#tastart").textContent = "Practice running"; }, 20000 / SPEED);
+  };
+  $("#go").onclick = async () => {
+    stopTimer();
+    D.think_aloud.practice = await REC.stop();
+    next();
+  };
+}
+
+/* 5. DRT introduction */
+function sDrtIntro() {
+  screen("drt_intro", "Training");
+  const n = el(`<div class="col"><div class="card">
+    <h3>Response task</h3>
+    <h1>Press the space bar when the dot appears</h1>
+    <p>Throughout the visit, a small white dot will appear now and then at the top of the video. Press the space bar as quickly as you can each time you see it. Keep doing this the whole time, including while you read or type.</p>
+    <p>You will practice this twice, for 30 seconds each. First you will only watch the screen. Then you will copy a short passage while responding to the dot.</p>
+    <div class="actions"><button class="btn" id="go">Start practice 1</button></div>
+  </div></div>`);
+  app.append(n);
+  $("#go").onclick = next;
+}
+
+function miniStage(label) {
+  return `<div class="stage" style="aspect-ratio:21/9"><div class="drt-dot"></div><div class="fix">+</div><div class="caption" style="min-height:0;justify-content:space-between"><span>${label}</span><span class="mono" id="cd"></span></div></div>`;
+}
+function countdown(seconds, onTick, onDone) {
+  const t0 = performance.now();
+  const iv = setInterval(() => {
+    const rem = seconds - (performance.now() - t0) * SPEED / 1000;
+    onTick(rem);
+    if (rem <= 0) { clearInterval(iv); onDone(); }
+  }, 200);
+  onTick(seconds);
+  return iv;
+}
+
+/* 6. Baseline A: DRT only */
+function sBaselineWatch() {
+  screen("baseline_watch", "Training");
+  const n = el(`<div class="col"><div class="card">
+    <h3>Practice 1 of 2</h3>
+    <h2>Watch the screen and press the space bar when the dot appears</h2>
+    ${miniStage("Practice 1")}
+    <div class="actions"><button class="btn" id="go" disabled>Continue</button></div>
+  </div></div>`);
+  app.append(n);
+  DRT.start("baseline_watch", $(".drt-dot", n));
+  countdown(BASELINE_SECONDS, r => $("#cd").textContent = fmt(r), () => {
+    DRT.stop(); $("#cd").textContent = "Done"; $("#go").disabled = false;
+  });
+  $("#go").onclick = next;
+}
+
+/* 7. Baseline B: DRT while copy-typing */
+function sBaselineType() {
+  screen("baseline_typing", "Training");
+  const passage = "The library opens at nine on weekdays and at ten on Saturdays. Visitors can borrow up to six books at a time and return them at any branch in the city. Study rooms can be reserved online up to one week in advance.";
+  const n = el(`<div class="col"><div class="card">
+    <h3>Practice 2 of 2</h3>
+    <h2>Copy the passage while pressing the space bar when the dot appears</h2>
+    ${miniStage("Practice 2")}
+    <p class="doc">${esc(passage)}</p>
+    <div class="field"><label for="copy">Type the passage here</label><textarea id="copy" spellcheck="false" autocomplete="off"></textarea></div>
+    <div class="actions"><button class="btn" id="go" disabled>Continue</button></div>
+  </div></div>`);
+  app.append(n);
+  let keys = 0; $("#copy").addEventListener("keydown", () => keys++);
+  $("#copy").addEventListener("paste", e => e.preventDefault());
+  $("#copy").focus();
+  DRT.start("baseline_typing", $(".drt-dot", n));
+  countdown(BASELINE_SECONDS, r => $("#cd").textContent = fmt(r), () => {
+    DRT.stop(); $("#cd").textContent = "Done"; $("#go").disabled = false;
+    D.baseline_typing = { keystrokes: keys, chars_typed: $("#copy").value.length };
+  });
+  $("#go").onclick = next;
+}
+
+/* 9. Practice intro */
+function sPracticeIntro() {
+  screen("practice_intro", "Training");
+  const g = D.condition;
+  const n = el(`<div class="col"><div class="card">
+    <h3>Practice visit</h3>
+    <h1>How documentation works in your visit</h1>
+    <p>${esc(INSTR[g])}</p>
+    <p>First, a one-minute practice visit lets you try the screen. Keep pressing the space bar when the dot appears. Nothing from the practice visit is used in the study.</p>
+    <div class="actions"><button class="btn" id="go">Start practice visit</button></div>
+  </div></div>`);
+  app.append(n);
+  $("#go").onclick = next;
+}
+
+/* 10. Practice visit */
+function sPractice() {
+  screen("practice_visit", "Training");
+  runVisit(PRACTICE, "practice", PRACTICE_CP_SECONDS, D.practice, () => {
+    screen("practice_done", "Training");
+    const n = el(`<div class="col"><div class="card">
+      <h3>Practice complete</h3>
+      <h1>The study visit is next</h1>
+      <p>The study visit takes about five minutes and is shown in three parts, with a short break between parts. It works the same way as the practice visit.</p>
+      <div class="actions"><button class="btn" id="go">Continue</button></div>
+    </div></div>`);
+    app.append(n);
+    $("#go").onclick = next;
+  });
+}
+
+/* 11. Case instructions */
+function sCaseIntro() {
+  screen("case_instructions", "Visit");
+  const g = D.condition;
+  const n = el(`<div class="col"><div class="card">
+    <h3>Study visit</h3>
+    <h1>${esc(CASE.intro)}</h1>
+    <p>${esc(COMMON_INSTR)}</p>
+    <p><strong>${esc(INSTR[g])}</strong></p>
+    <p>Keep pressing the space bar whenever the dot appears.</p>
+    <div class="actions"><button class="btn" id="go">Go to the visit</button></div>
+  </div></div>`);
+  app.append(n);
+  $("#go").onclick = next;
+}
+
+/* 12. Study visit */
+function sVisit() {
+  screen("study_visit", "Visit");
+  runVisit(CASE, "visit", CP_SECONDS, D.case, next);
+}
+
+/* ---------- visit engine ---------- */
+function runVisit(cd, phase, cpSec, rec, onDone) {
+  const g = D.condition, C = CONDITIONS[g];
+  const lines = cd.segments.flat();
+  const total = lines.reduce((s, l) => s + lineDur(l[1]), 0);
+  const segEnds = []; let acc = 0;
+  cd.segments.forEach(seg => { acc += seg.reduce((s, l) => s + lineDur(l[1]), 0); segEnds.push(acc); });
+  const ticks = segEnds.slice(0, -1).map(t => `<span class="tick" style="left:${(t / total * 100).toFixed(2)}%"></span>`).join("");
+  const isAI = C.documenter === "ai";
+  if (g === "G1" && !rec.self_note) rec.self_note = { snapshots: [], keystrokes: {} };
+
+  const n = el(`<div class="wide"><div class="visit">
+    <div>
+      <div class="stage" id="stage">
+        <div class="drt-dot" id="dot"></div>
+        ${isAI ? '<div class="badge"><i></i>AI scribe recording</div>' : ""}
+        <div class="speakers">
+          <div class="spk" id="spkD"><div class="avatar">You</div><div class="nm">Clinician</div><div class="rl">You</div></div>
+          <div class="spk" id="spkP"><div class="avatar">${esc(cd.patient.initials)}</div><div class="nm">${esc(cd.patient.name)}</div><div class="rl">${esc(cd.patient.label)}</div></div>
+        </div>
+        <div class="caption" id="cap" aria-live="polite"></div>
+        <div class="overlay" id="ov"></div>
+      </div>
+      <div class="track" aria-hidden="true"><div class="fill" id="fill"></div>${ticks}</div>
+      <div class="under"><span id="vstat">Ready</span><span class="mono" id="vtime">0:00 / ${fmt(total)}</span></div>
+    </div>
+    <aside class="panel" id="panel" aria-label="Clinical note"></aside>
+  </div></div>`);
+  app.append(n);
+  const stage = $("#stage", n), ov = $("#ov", n), cap = $("#cap", n), fill = $("#fill", n), panel = $("#panel", n), dot = $("#dot", n);
+
+  /* panel per condition */
+  const aiItems = [];               // released draft items with review state
+  let curSeg = 0, inPause = false;
+  let selfTA = null;
+  const keyCounts = {};
+  if (g === "G1") {
+    panel.innerHTML = `<div class="panel-h"><span class="t">Clinical note</span><span class="s">Written by you</span></div><div class="panel-b"><textarea id="selfnote" spellcheck="false" aria-label="Your clinical note" placeholder="${esc(NOTE_TEMPLATE)}"></textarea></div>`;
+    selfTA = $("#selfnote", panel);
+    selfTA.addEventListener("keydown", () => { const k = inPause ? `pause_${curSeg + 1}` : `segment_${curSeg + 1}`; keyCounts[k] = (keyCounts[k] || 0) + 1; });
+    selfTA.addEventListener("paste", e => e.preventDefault());
+  } else if (g === "G2") {
+    panel.innerHTML = `<div class="panel-h"><span class="t">Clinical note</span><span class="s">Written by you after the visit</span></div><div class="panel-b"><p class="empty">Notes are not taken during this visit. You will write the note from memory after the visit ends.</p></div>`;
+  } else if (g === "G3") {
+    panel.innerHTML = `<div class="panel-h"><span class="t">Clinical note</span><span class="s">AI scribe recording</span></div><div class="panel-b"><p class="empty">The AI scribe is recording this visit. The draft note will be available after the visit.</p></div>`;
+  } else {
+    panel.innerHTML = `<div class="panel-h"><span class="t">AI draft note</span><span class="s" id="pstat">Listening</span></div><div class="panel-b" id="pbody"><p class="empty">${g === "G5"
+      ? "The AI scribe is listening. Its draft appears here as the conversation goes on. At each pause, you confirm or correct the new items before the visit continues."
+      : "The AI scribe is listening. Its draft appears here as the conversation goes on."}</p></div>`;
+  }
+  const stacked = () => window.matchMedia("(max-width: 920px)").matches;
+  rec.ai_release = [];
+  let newIds = [];
+
+  /* live draft: release each AI item right after the line it is drawn from */
+  function releaseItems(k, lineIdx) {
+    if (!(g === "G4" || g === "G5")) return;
+    const its = (cd.items[k] || []).filter(it => it.after === lineIdx);
+    if (!its.length) return;
+    its.forEach(it => {
+      aiItems.push({ ...it, seg: k, original: it.text, status: g === "G5" ? "pending" : "shown", actions: [] });
+      rec.ai_release.push({ id: it.id, segment: k + 1, at_ms: now() });
+      newIds.push(it.id);
+    });
+    renderDraft();
+    const ps = $("#pstat", panel); if (ps) ps.textContent = "Updated";
+    setTimeout(() => { const p = $("#pstat", panel); if (p && !inPause) p.textContent = "Listening"; }, 1500 / SPEED);
+  }
+
+  function renderDraft() {
+    const body = $("#pbody", panel); body.innerHTML = "";
+    NOTE_SECTIONS.forEach(sec => {
+      const its = aiItems.filter(i => i.sec === sec);
+      if (!its.length) return;
+      const s = el(`<div class="note-sec"><h4>${esc(sec)}</h4><ul></ul></div>`);
+      its.forEach(i => {
+        const li = document.createElement("li");
+        li.textContent = i.text;
+        if (newIds.includes(i.id)) li.append(el('<span class="tag">New</span>'));
+        if (g === "G5" && i.status === "pending") li.append(el('<span class="tag">To confirm</span>'));
+        if (i.status === "corrected") li.append(el('<span class="tag">Corrected</span>'));
+        $("ul", s).append(li);
+      });
+      body.append(s);
+    });
+    if (aiItems.some(i => i.added)) {
+      const s = el(`<div class="note-sec"><h4>Added by clinician</h4><ul></ul></div>`);
+      aiItems.filter(i => i.added).forEach(i => { const li = document.createElement("li"); li.textContent = i.text; $("ul", s).append(li); });
+      body.append(s);
+    }
+  }
+
+  /* playback */
+  let played = 0, lineStart = 0, lineLen = 0, playing = false;
+  const timeIv = setInterval(() => {
+    const p = played + (playing ? Math.min(lineLen, (performance.now() - lineStart) * SPEED / 1000) : 0);
+    $("#vtime", n).textContent = `${fmt(p)} / ${fmt(total)}`;
+  }, 250);
+
+  function showLine(l) {
+    const who = l[0];
+    $("#spkD", n).classList.toggle("on", who === "D");
+    $("#spkP", n).classList.toggle("on", who === "P");
+    cap.innerHTML = `<span><b>${who === "D" ? "Clinician:" : esc(cd.patient.name.split(" ")[0]) + ":"}</b>${esc(l[1])}</span>`;
+  }
+  function playSegment(k, done) {
+    curSeg = k; inPause = false;
+    const seg = cd.segments[k];
+    $("#vstat", n).textContent = `Part ${k + 1} of ${cd.segments.length}`;
+    if (g === "G4" || g === "G5") { newIds = []; if (aiItems.length) renderDraft(); const ps = $("#pstat", panel); if (ps) ps.textContent = "Listening"; }
+    DRT.start(phase, dot, k + 1);
+    let i = 0; playing = true;
+    const go = () => {
+      if (i >= seg.length) { playing = false; lineLen = 0; DRT.stop(); done(); return; }
+      const l = seg[i]; showLine(l);
+      lineLen = lineDur(l[1]); lineStart = performance.now();
+      const ms = lineLen * 1000 / SPEED;
+      fill.style.transition = `width ${ms}ms linear`;
+      fill.style.width = ((played + lineLen) / total * 100) + "%";
+      setTimeout(() => { played += lineLen; lineLen = 0; releaseItems(k, i); i++; go(); }, ms);
+    };
+    go();
+  }
+
+  function checkpoint(k, resume) {
+    inPause = true;
+    const cp = { index: k + 1, condition: g, start_ms: now() };
+    rec.checkpoints.push(cp);
+    $("#vstat", n).textContent = "Break between parts";
+    $("#spkD", n).classList.remove("on"); $("#spkP", n).classList.remove("on");
+    ov.hidden = false;
+    ov.innerHTML = `<div class="big">End of part ${k + 1} of ${cd.segments.length}</div><div class="sub" id="ovmsg">${esc(PAUSE_MSG[g])}</div><div class="mono" id="ovcd"></div>`;
+    const released = g === "G5" ? aiItems.filter(i => i.status === "pending") : [];
+    let missing = { answer: null, text: "" };
+
+    if (g === "G1") rec.self_note && rec.self_note.snapshots.push({ at: `checkpoint_${k + 1}`, at_ms: now(), text: selfTA.value });
+    if (g === "G4") { $("#pstat", panel).textContent = "Paused"; cp.items_visible = aiItems.map(i => i.id); }
+    if (g === "G5") { renderReview(); $("#pstat", panel).textContent = "Review needed"; }
+    if (g === "G5" && stacked()) {
+      $("#ovmsg", ov).textContent = PAUSE_MSG[g] + " The draft note is below the video.";
+      panel.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+    }
+
+    function reviewDone() {
+      return released.every(i => i.status !== "pending" && !i.editing) && missing.answer && (missing.answer === "No" || missing.text.trim().length > 0);
+    }
+    function renderReview() {
+      const body = $("#pbody", panel); body.innerHTML = "";
+      body.append(el(`<p class="hint">Check each new item against what the patient said. Confirm it if it is accurate. Correct it if anything is wrong.</p>`));
+      const prior = aiItems.filter(i => !released.includes(i));
+      if (prior.length) {
+        const pd = el(`<details><summary>Earlier items (${prior.length})</summary><ul style="margin-top:6px;font-size:.88rem"></ul></details>`);
+        prior.forEach(i => { const li = document.createElement("li"); li.textContent = i.text; $("ul", pd).append(li); });
+        body.append(pd);
+      }
+      released.forEach(it => {
+        const box = el(`<div class="ritem"><span class="st"></span><div class="tx"></div><div class="row"></div></div>`);
+        $(".st", box).textContent = it.sec + (it.status === "confirmed" ? " · Confirmed" : it.status === "corrected" ? " · Corrected" : "");
+        const row = $(".row", box);
+        if (it.editing) {
+          const ta = el(`<textarea aria-label="Corrected text" style="min-height:70px"></textarea>`); ta.value = it.text;
+          $(".tx", box).append(ta);
+          const save = el(`<button class="btn sm">Save correction</button>`);
+          const cancel = el(`<button class="btn sm ghost">Cancel</button>`);
+          save.onclick = () => {
+            const v = ta.value.trim(); if (!v) return;
+            it.text = v; it.status = v === it.original ? "confirmed" : "corrected"; it.editing = false;
+            it.actions.push({ action: it.status === "corrected" ? "correct" : "confirm_via_edit", at_ms: now(), text: v });
+            renderReview(); check();
+          };
+          cancel.onclick = () => { it.editing = false; it.actions.push({ action: "cancel_edit", at_ms: now() }); renderReview(); check(); };
+          row.append(save, cancel);
+          setTimeout(() => ta.focus(), 0);
+        } else {
+          $(".tx", box).textContent = it.text;
+          if (it.status === "pending") {
+            const ok = el(`<button class="btn sm">Confirm</button>`);
+            const ed = el(`<button class="btn sm ghost">Correct</button>`);
+            ok.onclick = () => { it.status = "confirmed"; it.actions.push({ action: "confirm", at_ms: now() }); renderReview(); check(); };
+            ed.onclick = () => { it.editing = true; it.actions.push({ action: "open_edit", at_ms: now() }); renderReview(); check(); };
+            row.append(ok, ed);
+          } else {
+            box.classList.add("done");
+            const undo = el(`<button class="btn sm ghost">Change</button>`);
+            undo.onclick = () => { it.status = "pending"; it.actions.push({ action: "undo", at_ms: now() }); renderReview(); check(); };
+            row.append(undo);
+          }
+        }
+        body.append(box);
+      });
+      const mq = el(`<div class="ritem"><span class="qtext">Is anything the patient said in this part missing from the draft?</span>
+        <div class="row"><label class="opt" style="flex:1"><input type="radio" name="miss${k}" value="No"><span>No</span></label><label class="opt" style="flex:1"><input type="radio" name="miss${k}" value="Yes"><span>Yes</span></label></div>
+        <textarea aria-label="Missing information" placeholder="Add the missing information" style="min-height:64px" ${missing.answer === "Yes" ? "" : "hidden"}></textarea></div>`);
+      const mta = $("textarea", mq); mta.value = missing.text;
+      $$("input", mq).forEach(r => { if (r.value === missing.answer) r.checked = true; r.onchange = () => { missing.answer = r.value; mta.hidden = r.value !== "Yes"; if (!mta.hidden) mta.focus(); check(); }; });
+      mta.oninput = () => { missing.text = mta.value; check(); };
+      body.append(mq);
+    }
+
+    let timeUp = false, finished = false;
+    function check() {
+      if (finished) return;
+      if (g === "G5" && timeUp && !reviewDone()) $("#ovmsg", ov).textContent = "Confirm or correct each new item, and answer the question about missing information, to start the next part.";
+      if (timeUp && (g !== "G5" || reviewDone())) finish();
+    }
+    countdown(cpSec, r => { const c = $("#ovcd", ov); if (c) c.textContent = r > 0 ? `Part ${k + 2} starts in ${fmt(r)}` : ""; }, () => { timeUp = true; check(); });
+
+    function finish() {
+      finished = true;
+      cp.end_ms = now(); cp.duration_ms = cp.end_ms - cp.start_ms;
+      if (g === "G5") {
+        cp.items = released.map(i => ({ id: i.id, seeded: i.seeded || null, original: i.original, final: i.text, status: i.status, actions: i.actions }));
+        cp.missing = { ...missing };
+        if (missing.answer === "Yes" && missing.text.trim()) aiItems.push({ id: `add${k + 1}`, sec: "Added", text: missing.text.trim(), added: true, status: "added" });
+        aiItems.forEach(i => { delete i.editing; });
+      }
+      if (g === "G4" || g === "G5") { newIds = []; renderDraft(); $("#pstat", panel).textContent = "Listening"; }
+      ov.hidden = true;
+      if (g === "G5" && stacked()) stage.scrollIntoView({ block: "start" });
+      resume();
+    }
+  }
+
+  function finishVisit() {
+    clearInterval(timeIv);
+    $("#vstat", n).textContent = "Visit ended";
+    $("#vtime", n).textContent = `${fmt(total)} / ${fmt(total)}`;
+    $("#spkD", n).classList.remove("on"); $("#spkP", n).classList.remove("on");
+    if (g === "G1") {
+      rec.self_note.snapshots.push({ at: "visit_end", at_ms: now(), text: selfTA.value });
+      rec.self_note.keystrokes = keyCounts;
+      rec.self_note.text_at_visit_end = selfTA.value;
+      selfTA.readOnly = true;
+    }
+    if (g === "G4" || g === "G5") {
+      aiItems.forEach(i => { if (i.status === "pending") i.status = "not_reviewed_in_visit"; });
+      newIds = []; renderDraft(); $("#pstat", panel).textContent = "Draft complete";
+    }
+    rec.ai_items_state = aiItems.map(i => ({ id: i.id, text: i.text, original: i.original || null, status: i.status, added: !!i.added }));
+    rec.visit_end_ms = now();
+    ov.hidden = false;
+    ov.innerHTML = `<div class="big">The visit has ended</div><div class="sub">${phase === "practice" ? "That was the practice visit." : "Next, you will give your diagnostic assessment. The note will not be available on the next pages."}</div><button class="btn" id="ovgo">Continue</button>`;
+    $("#ovgo", ov).onclick = () => { panel.innerHTML = ""; onDone(); };
+  }
+
+  /* start overlay */
+  ov.innerHTML = `<div class="big">${phase === "practice" ? "Practice visit" : "Study visit"}</div><div class="sub">Click Start when you are ready. Remember to press the space bar whenever the dot appears.</div><button class="btn" id="ovgo">Start</button>`;
+  $("#ovgo", ov).onclick = () => {
+    ov.hidden = true; rec.visit_start_ms = now(); log("visit_start", { phase });
+    if (selfTA) selfTA.focus();
+    const runFrom = k => playSegment(k, () => {
+      if (k < cd.segments.length - 1) checkpoint(k, () => runFrom(k + 1));
+      else finishVisit();
+    });
+    runFrom(0);
+  };
+}
+
+/* 13. Diagnosis */
+function sDiagnosis() {
+  screen("diagnosis", "Questions");
+  const ord = ["most likely", "second most likely", "third most likely"];
+  const dx = i => `<div class="dxblock">
+      <div class="field"><label for="dx${i}">${i === 1 ? "Most likely diagnosis" : `Diagnosis ${i} <span class="hint">(optional)</span>`}</label><input type="text" id="dx${i}" autocomplete="off"></div>
+      ${likertHTML(`conf${i}`, `How confident are you in the ${ord[i - 1]} diagnosis?`, CONFIDENCE)}
+    </div>`;
+  const n = el(`<div class="col"><div class="card">
+    <h3>Your assessment</h3>
+    <h1>What is going on with this patient?</h1>
+    <p class="lede">Think aloud the whole time you work on this page. Say everything that goes through your mind as you work out what is going on. Then list up to three diagnoses, from most to least likely. You cannot return to this page after you submit.</p>
+    ${recBar("dxbar")}
+    ${dx(1)}${dx(2)}${dx(3)}
+    <div class="actions"><button class="btn" id="go">Submit assessment</button></div>
+  </div></div>`);
+  app.append(n);
+  const t0 = now();
+  let stopTimer = () => {};
+  REC.start("diagnosis").then(ok => {
+    if (D.think_aloud.recording_available === undefined) D.think_aloud.recording_available = ok;
+    stopTimer = wireRecBar($("#dxbar"), ok);
+  });
+  $("#go").onclick = async () => {
+    const c = $(".card", n);
+    if (!$("#dx1").value.trim()) return setErr(c, "Please enter your most likely diagnosis.");
+    for (const i of [1, 2, 3]) {
+      if ($(`#dx${i}`).value.trim() && !radioVal(c, `conf${i}`)) return setErr(c, `Please rate your confidence in diagnosis ${i}.`);
+    }
+    D.case.diagnosis = {
+      ranked: [1, 2, 3].map(i => {
+        const conf = radioVal(c, `conf${i}`);
+        return { rank: i, diagnosis: $(`#dx${i}`).value.trim(), confidence_1to7: conf ? Number(conf) : null, confidence_scaled: conf ? (Number(conf) - 1) / 6 : null };
+      }).filter(d => d.diagnosis),
+      scoring_note: "Accuracy (Yin et al. 2025): 3 if rank 1 correct, 2 if rank 2, 1 if rank 3, 0 if absent. Calibration: scaled confidence of rank 1 minus accuracy of rank 1 (1/0). Scored offline by blinded raters.",
+      time_ms: now() - t0
+    };
+    stopTimer();
+    $("#go").disabled = true;
+    D.think_aloud.diagnosis = await REC.stop();
+    next();
+  };
+}
+
+/* 14. Information retention: free recall */
+function sRecall() {
+  screen("free_recall", "Questions");
+  const MIN = 120, LIMIT = 180;
+  const n = el(`<div class="col"><div class="card">
+    <h3>What you remember</h3>
+    <h1>List what you remember</h1>
+    <div class="field"><label for="recall">List everything you remember about this patient from the visit: what the patient said, what you were told, and any findings. Write one item per line. Include details even if they seem unimportant. Do not explain or interpret the information. Just list it.</label>
+      <textarea id="recall" style="min-height:260px" spellcheck="false"></textarea></div>
+    <p class="mono hint" id="rt"></p>
+    <div class="actions"><button class="btn" id="go" disabled>Continue</button></div>
+  </div></div>`);
+  app.append(n);
+  $("#recall").addEventListener("paste", e => e.preventDefault());
+  $("#recall").focus();
+  const t0 = now();
+  const iv = countdown(LIMIT, r => {
+    const used = LIMIT - r;
+    $("#rt").textContent = r > 0 ? `Time remaining ${fmt(r)}` : "Time is up. Click Continue.";
+    if (used >= MIN) $("#go").disabled = false;
+  }, () => { $("#recall").readOnly = true; $("#go").disabled = false; });
+  $("#go").onclick = () => {
+    clearInterval(iv);
+    const items = $("#recall").value.split(/\n+/).map(x => x.trim()).filter(Boolean);
+    D.case.retention = { free_recall: items, n_items: items.length, time_ms: now() - t0,
+      coding_note: "Code each line against the physician-validated cue map: focal, non-focal, irrelevant detail, intrusion error. Optional: adjusted ratio of clustering (order of recall)." };
+    next();
+  };
+}
+
+/* 15. Information integration: problem representation */
+function sSummary() {
+  screen("problem_representation", "Questions");
+  const MAXW = 60;
+  const n = el(`<div class="col"><div class="card">
+    <h3>Case summary</h3>
+    <h1>Summarize the case</h1>
+    <div class="field"><label for="sum">Summarize this patient's case in one to three sentences, as you would present it to a colleague. Bring together the findings you consider most important. Do not name a diagnosis.</label>
+      <textarea id="sum" style="min-height:130px"></textarea>
+      <div class="wc" id="wc">0 of ${MAXW} words</div></div>
+    <div class="actions"><button class="btn" id="go">Continue</button></div>
+  </div></div>`);
+  app.append(n);
+  const words = () => ($("#sum").value.trim().match(/\S+/g) || []).length;
+  $("#sum").addEventListener("input", () => { $("#wc").textContent = `${words()} of ${MAXW} words`; });
+  $("#sum").addEventListener("paste", e => e.preventDefault());
+  const t0 = now();
+  $("#go").onclick = () => {
+    const c = $(".card", n), w = words();
+    if (w < 8) return setErr(c, "Please write a short summary of the case.");
+    if (w > MAXW) return setErr(c, `Please shorten your summary to ${MAXW} words or fewer. It is ${w} words now.`);
+    D.case.integration = { summary_statement: $("#sum").value.trim(), words: w, time_ms: now() - t0,
+      coding_note: "Score integration: cross-segment coverage of focal cues, linking statements (temporal, enabling condition to consequence), higher-order synthesis, three-part structure, factual accuracy, irrelevant content (reverse). Score separately: semantic qualifiers and abstraction (interpretive). Code whether a diagnosis was named. Two blinded raters." };
+    next();
+  };
+}
+
+/* 15. Post-visit measures */
+function sPost() {
+  screen("post_visit", "Questions");
+  const n = el(`<div class="col"><div class="card">
+    <h3>About the visit</h3>
+    <h1>How the visit felt</h1>
+    <p class="lede">Rate the visit as a whole, from the start of the video to the end.</p>
+    ${likertHTML("tlx_mental", "Mental demand: how mentally demanding was the visit?", LOWHIGH)}
+    ${likertHTML("tlx_physical", "Physical demand: how physically demanding was the visit?", LOWHIGH)}
+    ${likertHTML("tlx_temporal", "Temporal demand: how hurried or rushed was the pace?", LOWHIGH)}
+    ${likertHTML("tlx_performance", "Performance: how successful were you in doing what you were asked?", PERFORMANCE)}
+    ${likertHTML("tlx_effort", "Effort: how hard did you have to work to reach your level of performance?", LOWHIGH)}
+    ${likertHTML("tlx_frustration", "Frustration: how insecure, irritated, or stressed were you?", LOWHIGH)}
+    <div class="dxblock"></div>
+    <div class="field"><span class="qtext">For this visit, who was responsible for drafting the clinical note?</span>
+      ${optsHTML("mc1", ["I wrote it during the visit", "I will write it after the visit", "An AI scribe drafted it", "Not sure"])}</div>
+    <div class="field"><span class="qtext">During the visit, could you see a draft of the note?</span>
+      ${optsHTML("mc2", ["Yes, my own note", "Yes, the AI draft", "No"])}</div>
+    <div class="field"><span class="qtext">During the breaks between parts, were you asked to confirm or correct the note?</span>
+      ${optsHTML("mc3", ["Yes", "No"])}</div>
+    <div class="actions"><button class="btn" id="go">Continue</button></div>
+  </div></div>`);
+  app.append(n);
+  $("#go").onclick = () => {
+    const c = $(".card", n);
+    const tlx = {};
+    const tk = ["mental", "physical", "temporal", "performance", "effort", "frustration"];
+    tk.forEach(k => { const v = radioVal(c, "tlx_" + k); tlx[k] = v ? Number(v) : null; });
+    if (tk.some(k => tlx[k] == null)) return setErr(c, "Please answer every question before continuing.");
+    tlx.raw_tlx_mean = tk.reduce((s, k) => s + tlx[k], 0) / tk.length;
+    const names = ["mc1", "mc2", "mc3"];
+    const v = {}; names.forEach(k => v[k] = radioVal(c, k));
+    if (names.some(k => !v[k])) return setErr(c, "Please answer every question before continuing.");
+    D.case.post = {
+      nasa_tlx_1to7: tlx,
+      manipulation_check: { note_responsibility: v.mc1, saw_draft: v.mc2, asked_to_confirm: v.mc3 }
+    };
+    next();
+  };
+}
+
+/* 16. Note completion / review and sign */
+function buildAINote() {
+  const st = D.case.ai_items_state || [];
+  const all = CASE.items.flat().map(it => {
+    const s = st.find(x => x.id === it.id);
+    return { ...it, text: s ? s.text : it.text };
+  });
+  const added = st.filter(x => x.added);
+  let out = "CLINICAL NOTE (AI draft)\nPatient: Dana Reyes, 34, F\n";
+  NOTE_SECTIONS.forEach(sec => {
+    const its = all.filter(i => i.sec === sec);
+    if (its.length) out += `\n${sec}\n` + its.map(i => `- ${i.text}`).join("\n") + "\n";
+  });
+  if (added.length) out += `\nAdded by clinician during visit\n` + added.map(i => `- ${i.text}`).join("\n") + "\n";
+  out += "\nAssessment and plan\n- To be completed by the clinician.\n";
+  return out;
+}
+function sNote() {
+  screen("note", "Note");
+  const g = D.condition;
+  let title, lede, prefill = "", placeholder = "";
+  if (g === "G1") { title = "Finalize your note"; lede = "Here is the note you wrote during the visit. Make any final changes, then sign it."; prefill = D.case.self_note.text_at_visit_end || ""; }
+  else if (g === "G2") { title = "Write your note"; lede = "Write the clinical note for this visit from memory, then sign it."; placeholder = NOTE_TEMPLATE; }
+  else { title = "Review the AI draft"; lede = "Here is the final draft from the AI scribe. Correct anything that is wrong or missing, then sign it."; prefill = buildAINote(); }
+  const n = el(`<div class="col"><div class="card">
+    <h3>Clinical note</h3>
+    <h1>${title}</h1>
+    <p class="lede">${lede}</p>
+    <div class="field"><label for="fn">Note</label><textarea id="fn" spellcheck="false" style="min-height:420px;font-family:var(--mono);font-size:.84rem;line-height:1.55"></textarea></div>
+    <label class="opt"><input type="checkbox" id="sign"><span>I have reviewed this note and sign it as the responsible clinician.</span></label>
+    <div class="actions"><button class="btn" id="go">Sign note</button></div>
+  </div></div>`);
+  app.append(n);
+  const ta = $("#fn"); ta.value = prefill; ta.placeholder = placeholder;
+  let keys = 0; ta.addEventListener("keydown", () => keys++);
+  ta.addEventListener("paste", e => e.preventDefault());
+  const t0 = now();
+  $("#go").onclick = () => {
+    const c = $(".card", n);
+    if (ta.value.trim().length < 20) return setErr(c, "The note looks empty. Please write or review it before signing.");
+    if (!$("#sign").checked) return setErr(c, "Please check the box to sign the note.");
+    const fin = ta.value;
+    const low = fin.toLowerCase();
+    D.case.final_note = {
+      mode: g === "G1" ? "finalize_own" : g === "G2" ? "write_after_visit" : "review_ai_draft",
+      initial_text: prefill, final_text: fin, edited: fin !== prefill, keystrokes: keys, time_ms: now() - t0,
+      seeded_checks: CONDITIONS[g].documenter === "ai" ? {
+        oral_contraceptive_documented: /contracept|birth control|\bocp\b/.test(low),
+        left_calf_documented: /left calf/.test(low)
+      } : null
+    };
+    next();
+  };
+}
+
+/* 17. End questions */
+function sEnd() {
+  screen("end_questions", "Finish");
+  const n = el(`<div class="col"><div class="card">
+    <h3>Last questions</h3>
+    <h1>Almost done</h1>
+    <div class="field"><span class="qtext">How did you complete this study?</span>
+      ${optsHTML("serious", ["I took part seriously", "I did not pay full attention, so my answers should not be used"])}</div>
+    <div class="field"><label for="purpose">In your own words, what do you think this study was testing?</label><textarea id="purpose"></textarea></div>
+    <div class="field"><label for="comments">Any comments about the study? <span class="hint">(optional)</span></label><textarea id="comments"></textarea></div>
+    <div class="actions"><button class="btn" id="go">Finish</button></div>
+  </div></div>`);
+  app.append(n);
+  $("#go").onclick = () => {
+    const c = $(".card", n);
+    const s = radioVal(c, "serious");
+    if (!s || !$("#purpose").value.trim()) return setErr(c, "Please answer both questions.");
+    D.end = { seriousness: s, suspicion_probe: $("#purpose").value.trim(), comments: $("#comments").value.trim(), completed_at: new Date().toISOString(), total_ms: now() };
+    next();
+  };
+}
+
+/* 17b. Upload */
+function blobToBase64(blob) {
+  return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(",")[1] || ""); r.onerror = rej; r.readAsDataURL(blob); });
+}
+let uploaded = false;
+async function sUpload() {
+  screen("upload", "Finish");
+  if (cur) cur.end_ms = now();
+  const n = el(`<div class="col"><div class="card"><h3>Saving</h3><h1>Saving your responses</h1><p class="lede" id="upmsg">Please keep this page open. This can take up to a minute.</p><div class="actions"><button class="btn" id="go" hidden>Try again</button></div></div></div>`);
+  app.append(n);
+  const audio = REC.blobs.diagnosis;
+  const payload = {
+    kind: "complete", participant_id: D.participant_id, group: D.condition, test: TEST,
+    record: D,
+    audio: audio ? { mime: audio.type || "audio/webm", data: await blobToBase64(audio) } : null
+  };
+  const body = JSON.stringify(payload);
+  async function attempt() {
+    if (!CONFIG.ENDPOINT) throw new Error("no_endpoint");
+    const r = await fetch(CONFIG.ENDPOINT, { method: "POST", body });
+    const j = await r.json();
+    if (!j || !j.ok) throw new Error((j && j.error) || "save_failed");
+    return j;
+  }
+  for (let i = 0; i < 3; i++) {
+    try {
+      const j = await attempt();
+      uploaded = true; D.completion_code = j.completion_code || null;
+      next(); return;
+    } catch (e) { log("upload_error", { attempt: i, error: String(e) }); await new Promise(r => setTimeout(r, 2000)); }
+  }
+  $("#upmsg").textContent = "We could not save your responses. Please check your internet connection and click Try again. If it still fails, click Download my responses and email the file to the research team.";
+  const go = $("#go"); go.hidden = false;
+  const dl = el(`<button class="btn ghost" id="dl">Download my responses</button>`); go.before(dl);
+  dl.onclick = () => {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([body], { type: "application/json" }));
+    a.download = `ambient-study-${D.participant_id}.json`; document.body.append(a); a.click(); a.remove();
+  };
+  go.onclick = async () => {
+    go.disabled = true; $("#upmsg").textContent = "Trying again…";
+    try { const j = await attempt(); uploaded = true; D.completion_code = j.completion_code || null; next(); }
+    catch (e) { log("upload_error", { attempt: "manual", error: String(e) }); go.disabled = false; $("#upmsg").textContent = "Still not saved. Please download your responses and email the file to the research team."; }
+  };
+}
+
+/* backup: if the page closes before the final save, send what we have (no audio) */
+window.addEventListener("pagehide", () => {
+  if (uploaded || !CONFIG.ENDPOINT || !D.consent || !navigator.sendBeacon) return;
+  try { navigator.sendBeacon(CONFIG.ENDPOINT, new Blob([JSON.stringify({ kind: "partial", participant_id: D.participant_id, group: D.condition, test: TEST, record: D })], { type: "text/plain" })); } catch (_) {}
+});
+
+/* 18. Debrief + session data */
+function drtSummary() {
+  const phases = ["baseline_watch", "baseline_typing", "practice", "visit"];
+  return phases.map(ph => {
+    const t = D.drt.filter(x => x.phase === ph && x.outcome !== "truncated");
+    const hits = t.filter(x => x.outcome === "hit");
+    const mean = hits.length ? Math.round(hits.reduce((s, x) => s + x.rt_ms, 0) / hits.length) : null;
+    const fa = D.drt_false_alarms.filter(x => x.phase === ph).length;
+    return { phase: ph, trials: t.length, hits: hits.length, hit_rate: t.length ? (hits.length / t.length) : null, mean_rt_ms: mean, false_alarms: fa };
+  });
+}
+function toCSV() {
+  const head = ["participant_id", "condition", "phase", "segment", "trial", "onset_ms", "rt_ms", "outcome", "response_target"];
+  const rows = D.drt.map(r => [D.participant_id, D.condition, r.phase, r.segment ?? "", r.trial, r.onset_ms, r.rt_ms ?? "", r.outcome, r.response_target ?? ""]);
+  return [head, ...rows].map(r => r.map(v => { const s = String(v); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; }).join(",")).join("\n");
+}
+function sDebrief() {
+  screen("debrief", "Finish");
+  if (cur) cur.end_ms = now();
+  const g = D.condition;
+  const ds = drtSummary();
+  const cps = D.case.checkpoints.map(c => `${fmt(c.duration_ms / 1000)}`).join(", ");
+  let g5 = "";
+  if (g === "G5") {
+    const its = D.case.checkpoints.flatMap(c => c.items || []);
+    const seeded = its.filter(i => i.seeded);
+    g5 = `<tr><td>Seeded draft problems caught at pauses</td><td>${seeded.map(i => `${esc(i.id)}: ${i.status === "corrected" ? "corrected" : "not corrected"}`).join(", ")}</td></tr>
+          <tr><td>Items confirmed / corrected</td><td>${its.filter(i => i.status === "confirmed").length} / ${its.filter(i => i.status === "corrected").length}</td></tr>`;
+  }
+  const sc = D.case.final_note.seeded_checks;
+  const n = el(`<div class="col">
+    <div class="card">
+      <h3>Thank you</h3>
+      <h1>About this study</h1>
+      <p>This study examines how the way a visit is documented shapes clinicians' diagnostic reasoning. Participants were assigned to write the note during the visit, write it after the visit, or have an ambient AI scribe draft it. In some AI conditions, the draft was shown during the visit, and in one condition, clinicians confirmed or corrected the draft at each pause.</p>
+      <p>The AI scribe in this study was simulated. The draft notes were written in advance by the research team, and some contained deliberate errors so that we could study how clinicians review AI drafts. The patient and the visit were fictional. The instructions said you would write or review the clinical note at the end. That step was not part of the study, because we only needed your reasoning before any note was available.</p>
+      <p>Please do not discuss the study with colleagues who may take part. If you have questions, contact the research team${CONFIG.CONTACT_EMAIL ? ` at ${esc(CONFIG.CONTACT_EMAIL)}` : ""}.</p>
+    </div>
+    <div class="card">
+      <h3>Your gift card</h3>
+      <p>Your responses have been saved. Your completion code is <b class="mono">${esc(D.completion_code || D.participant_id)}</b>.</p>
+      ${CONFIG.GIFT_CARD_FORM_URL ? `<p>Enter this code in the gift card form. The form opens in a new tab and is not linked to your answers.</p><div class="actions"><a class="btn" href="${esc(CONFIG.GIFT_CARD_FORM_URL)}" target="_blank" rel="noopener">Open the gift card form</a></div>` : `<p>Please keep this code. The research team will contact you about your gift card.</p>`}
+      <p class="hint">You can close this page now.</p>
+    </div>
+    <div class="card" ${TEST ? "" : "hidden"}>
+      <h3>Session data for the research team</h3>
+      <div class="tablewrap"><table class="sum"><tbody>
+        <tr><td>Participant ID</td><td class="mono">${D.participant_id}</td></tr>
+        <tr><td>Condition</td><td>${g}: ${esc(D.condition_label)}</td></tr>
+        <tr><td>Reference diagnosis</td><td>${esc(CASE.reference_diagnosis)}</td></tr>
+        <tr><td>Leading diagnosis given</td><td>${esc((D.case.diagnosis.ranked[0] || {}).diagnosis || "")} (confidence ${(D.case.diagnosis.ranked[0] || {}).confidence_1to7} of 7)</td></tr>
+        <tr><td>Items recalled</td><td class="mono">${D.case.retention.n_items}</td></tr>
+        <tr><td>Case summary</td><td>${esc(D.case.integration.summary_statement)} <span class="hint">(${D.case.integration.words} words)</span></td></tr>
+        <tr><td>Think-aloud audio</td><td>${D.think_aloud.diagnosis ? `${fmt(D.think_aloud.diagnosis.duration_ms / 1000)} recorded, ${D.think_aloud.reminders || 0} reminders` : "Not recorded"}</td></tr>
+        <tr><td>Assignment</td><td>${esc(D.assignment_method || "")}</td></tr>
+        <tr><td>Pause durations</td><td class="mono">${cps}</td></tr>
+        ${g === "G1" ? `<tr><td>Keystrokes during the visit</td><td class="mono">${Object.entries(D.case.self_note.keystrokes).map(([k, v]) => `${k}: ${v}`).join(", ") || "0"}</td></tr>` : ""}
+        ${g5}
+        ${sc ? `<tr><td>Final note: oral contraceptive documented</td><td>${sc.oral_contraceptive_documented ? "Yes" : "No"}</td></tr><tr><td>Final note: left calf documented</td><td>${sc.left_calf_documented ? "Yes" : "No"}</td></tr>` : ""}
+        <tr><td>Times the page lost focus</td><td class="mono">${D.events.filter(e => e.type === "window_blur").length}</td></tr>
+      </tbody></table></div>
+      <h3>Response task</h3>
+      <div class="tablewrap"><table class="sum">
+        <thead><tr><th>Phase</th><th>Trials</th><th>Hit rate</th><th>Mean RT (ms)</th><th>False alarms</th></tr></thead>
+        <tbody>${ds.map(r => `<tr><td>${r.phase.replace("_", " ")}</td><td class="mono">${r.trials}</td><td class="mono">${r.hit_rate == null ? "" : Math.round(r.hit_rate * 100) + "%"}</td><td class="mono">${r.mean_rt_ms ?? ""}</td><td class="mono">${r.false_alarms}</td></tr>`).join("")}</tbody>
+      </table></div>
+      <div class="actions" id="dlrow">
+        <span class="hint" id="dlmsg" aria-live="polite"></span>
+        <button class="btn ghost" id="copy">Copy JSON</button>
+        <button class="btn ghost" id="csv">Save response task CSV</button>
+        ${REC.blobs.diagnosis ? '<button class="btn ghost" id="aud">Save think-aloud audio</button>' : ""}
+        <button class="btn" id="json">Save full data (JSON)</button>
+      </div>
+      <details><summary>Show full data record</summary><textarea id="raw" readonly style="min-height:320px;margin-top:10px;font-family:var(--mono);font-size:.78rem"></textarea></details>
+      <div class="actions"><button class="btn ghost" id="again">Start a new test session</button></div>
+    </div></div>`);
+  app.append(n);
+  const json = JSON.stringify(D, null, 2);
+  $("#raw").value = json;
+  const msg = t => $("#dlmsg").textContent = t;
+
+  async function save(filename, data) {
+    if (downloads) {
+      try { await downloads.save({ filename, data }); msg("Saved " + filename + "."); }
+      catch (e) { msg(e && e.code === "declined" ? "Save cancelled." : "Saving is not available here. Use Copy JSON instead."); }
+      return;
+    }
+    if (!window.claude) {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([data], { type: filename.endsWith(".csv") ? "text/csv" : "application/json" }));
+      a.download = filename; document.body.append(a); a.click(); a.remove();
+      msg("Saved " + filename + "."); return;
+    }
+    msg("Saving is not available here. Use Copy JSON instead.");
+  }
+  $("#json").onclick = () => save(`encounter-${D.participant_id}-${g}.json`, json);
+  $("#csv").onclick = () => save(`drt-${D.participant_id}-${g}.csv`, toCSV());
+  if ($("#aud")) $("#aud").onclick = () => save(`thinkaloud-${D.participant_id}-${g}.webm`, REC.blobs.diagnosis);
+  $("#copy").onclick = async () => {
+    try { await navigator.clipboard.writeText(json); msg("Copied the data record."); }
+    catch (_) { const d = $("details", n); d.open = true; const r = $("#raw"); r.focus(); r.select(); msg("Copy was blocked. The record is selected below, so press Ctrl+C or Cmd+C."); }
+  };
+  $("#again").onclick = () => { location.search = "?test=1"; };
+}
+
+next();
+})();
+</script>
+
+</body>
+</html>
