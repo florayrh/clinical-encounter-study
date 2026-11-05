@@ -499,8 +499,8 @@ const DRT = {
     if (!this.phase) return;
     const tag = (e.target && e.target.tagName || "").toLowerCase();
     const inText = tag === "textarea" || (tag === "input" && /^(text|number|search)$/i.test(e.target.type || "text"));
-    if (!inText) e.preventDefault();                 // no page scroll or button activation; spaces still type in text fields
-    const target = inText ? "text_field" : "page";   // text_field = the space may also be a typed word break (G1, typing baseline)
+    if (!inText) e.preventDefault();
+    const target = inText ? "text_field" : "page";   // text_field = pressed while typing in a text field (G1, typing baseline)
     if (this.pending) {
       const rt = performance.now() - this.pending._on;
       if (rt < 100) { D.drt_false_alarms.push({ phase: this.phase, segment: this.seg, at_ms: now(), kind: "anticipation", target }); return; }
@@ -517,7 +517,8 @@ const DRT = {
     this.phase = null; this.seg = null;
   }
 };
-document.addEventListener("keydown", e => { if ((e.code === "Space" || e.key === " ") && !e.repeat) DRT.press(e); }, true);
+/* response key: the Control key (Ctrl), which is not used in ordinary typing */
+document.addEventListener("keydown", e => { if (e.key === "Control" && !e.repeat) DRT.press(e); }, true);
 
 /* ---------- environment logging ---------- */
 document.addEventListener("visibilitychange", () => log("visibility", { state: document.visibilityState, screen: cur && cur.name }));
@@ -595,14 +596,19 @@ function sPre() {
       <select id="spec"><option value="">Select</option><option>Internal medicine</option><option>Family medicine</option><option>Emergency medicine</option><option>Pediatrics</option><option>Obstetrics and gynecology</option><option>Surgery</option><option>Psychiatry</option><option>Not yet chosen</option><option>Other</option></select></div>
     <div class="field"><label for="age">What is your age? <span class="hint">(in years)</span></label>
       <input type="number" id="age" min="18" max="99" step="1" inputmode="numeric"></div>
+    <div class="field"><label for="gender">What is your gender?</label>
+      <select id="gender"><option value="">Select</option><option>Woman</option><option>Man</option><option>Non-binary</option><option>Prefer to self-describe</option><option>Prefer not to say</option></select>
+      <input type="text" id="gender_self" aria-label="Your gender" placeholder="Please describe" hidden></div>
     ${likertHTML("scribe_use", "How often do you use an ambient AI scribe in your clinical work?", FREQUENCY)}
     <div class="actions"><button class="btn" id="go">Continue</button></div>
   </div></div>`);
   app.append(n);
+  $("#gender").onchange = () => { const o = $("#gender").value === "Prefer to self-describe"; $("#gender_self").hidden = !o; if (o) $("#gender_self").focus(); };
   $("#go").onclick = () => {
     const c = $(".card", n);
     const v = {
       role: $("#role").value, years_clinical: $("#years").value, specialty: $("#spec").value, age: $("#age").value,
+      gender: $("#gender").value,
       scribe_use_1to7: radioVal(c, "scribe_use")
     };
     const missing = Object.entries(v).filter(([, x]) => x === "" || x == null);
@@ -610,6 +616,7 @@ function sPre() {
     const age = Number(v.age);
     if (!Number.isInteger(age) || age < 18 || age > 99) return setErr(c, "Please enter your age as a whole number between 18 and 99.");
     ["years_clinical", "age", "scribe_use_1to7"].forEach(k => v[k] = Number(v[k]));
+    v.gender_self_described = v.gender === "Prefer to self-describe" ? $("#gender_self").value.trim() : "";
     D.pre = v; next();
   };
 }
@@ -748,8 +755,8 @@ function sDrtIntro() {
   screen("drt_intro", "Training");
   const n = el(`<div class="col"><div class="card">
     <h3>Response task</h3>
-    <h1>Press the space bar when the dot appears</h1>
-    <p>Throughout the visit, a small white dot will appear now and then at the top of the video. <b>Press the space bar as quickly as you can each time you see it. Keep doing this the whole time, including while you read or type.</b></p>
+    <h1>Press the Control key when the dot appears</h1>
+    <p>Throughout the visit, a small white dot will appear now and then at the top of the video. <b>Press the Control key (Ctrl, at the bottom left of your keyboard) as quickly as you can each time you see it. Keep doing this the whole time, including while you read or type.</b></p>
     <p>You will practice this twice, for 30 seconds each. First you will only watch the screen. Then you will copy a short passage while responding to the dot.</p>
     <div class="actions"><button class="btn" id="go">Start practice 1</button></div>
   </div></div>`);
@@ -776,7 +783,7 @@ function sBaselineWatch() {
   screen("baseline_watch", "Training");
   const n = el(`<div class="col"><div class="card">
     <h3>Practice 1 of 2</h3>
-    <h2>Watch the screen and press the space bar when the dot appears</h2>
+    <h2>Watch the screen and press the Control key when the dot appears</h2>
     ${miniStage("Practice 1")}
     <div class="actions"><button class="btn" id="go" disabled>Continue</button></div>
   </div></div>`);
@@ -794,7 +801,7 @@ function sBaselineType() {
   const passage = "The library opens at nine on weekdays and at ten on Saturdays. Visitors can borrow up to six books at a time and return them at any branch in the city. Study rooms can be reserved online up to one week in advance.";
   const n = el(`<div class="col"><div class="card">
     <h3>Practice 2 of 2</h3>
-    <h2>Copy the passage while pressing the space bar when the dot appears</h2>
+    <h2>Copy the passage while pressing the Control key when the dot appears</h2>
     ${miniStage("Practice 2")}
     <p class="doc">${esc(passage)}</p>
     <div class="field"><label for="copy">Type the passage here</label><textarea id="copy" spellcheck="false" autocomplete="off"></textarea></div>
@@ -820,7 +827,7 @@ function sPracticeIntro() {
     <h3>Practice visit</h3>
     <h1>How documentation works in your visit</h1>
     <p>${INSTR[g]}</p>
-    <p>First, a one-minute practice visit lets you try the screen. <b>Keep pressing the space bar when the dot appears.</b> Nothing from the practice visit is used in the study.</p>
+    <p>First, a one-minute practice visit lets you try the screen. <b>Keep pressing the Control key when the dot appears.</b> Nothing from the practice visit is used in the study.</p>
     <div class="actions"><button class="btn" id="go">Start practice visit</button></div>
   </div></div>`);
   app.append(n);
@@ -872,7 +879,7 @@ function sCaseIntro() {
     <h1>${esc(CASE.intro)}</h1>
     <p>${COMMON_INSTR}</p>
     <p>${INSTR[g]}</p>
-    <p><b>Keep pressing the space bar whenever the dot appears.</b></p>
+    <p><b>Keep pressing the Control key whenever the dot appears.</b></p>
     <div class="actions"><button class="btn" id="go">Go to the visit</button></div>
   </div></div>`);
   app.append(n);
@@ -1206,7 +1213,7 @@ function runVisit(cd, phase, cpSec, rec, onDone) {
   }
 
   /* start overlay */
-  ov.innerHTML = `<div class="big">${phase === "practice" ? "Practice visit" : "Study visit"}</div><div class="sub">Click Start when you are ready. <b>The video plays from start to end and cannot be paused or replayed.</b> Remember to press the space bar whenever the dot appears.</div><button class="btn" id="ovgo">Start</button>`;
+  ov.innerHTML = `<div class="big">${phase === "practice" ? "Practice visit" : "Study visit"}</div><div class="sub">Click Start when you are ready. <b>The video plays from start to end and cannot be paused or replayed.</b> Remember to press the Control key whenever the dot appears.</div><button class="btn" id="ovgo">Start</button>`;
   $("#ovgo", ov).onclick = () => {
     ov.hidden = true; rec.visit_start_ms = now(); log("visit_start", { phase });
     if (selfTA) selfTA.focus();
