@@ -96,7 +96,7 @@ input[type=range]{width:100%;accent-color:var(--ink)}
 .spk .rl{font-size:.68rem;color:var(--stage-muted);letter-spacing:.08em;text-transform:uppercase}
 .caption{min-height:4.4em;padding:12px 6% 16px;font-size:clamp(.82rem,1.55vw,1.08rem);line-height:1.45;display:flex;align-items:center}
 .caption b{font-weight:600;margin-right:.45em}
-.stage video{flex:1;min-height:0;width:100%;object-fit:contain;background:#000;display:block}
+.stage video{pointer-events:none;flex:1;min-height:0;width:100%;object-fit:contain;background:#000;display:block}
 .stage.has-video .caption{position:absolute;left:0;right:0;bottom:0;min-height:0;background:rgba(0,0,0,.62);color:#fff;padding:8px 6% 10px;z-index:2}
 .stage.has-video .caption:empty{display:none}
 .badge{z-index:2;position:absolute;top:12px;right:14px;font-size:.68rem;letter-spacing:.07em;text-transform:uppercase;display:flex;align-items:center;gap:6px}
@@ -172,7 +172,7 @@ const CONFIG = {
   GIFT_CARD_FORM_URL: "",     // separate form for the gift card, not linked to responses
   CONTACT_EMAIL: "",          // shown on the consent and debrief pages
   IRB_PROTOCOL: "",           // shown on the consent page
-  SHOW_CAPTIONS: true         // show the spoken text under the video
+  SHOW_CAPTIONS: false        // show the spoken text under the video
 };
 
 /* ---------- URL parameters ----------
@@ -652,16 +652,18 @@ function sDevice() {
   const w = window.innerWidth, h = window.innerHeight;
   D.device = { viewport_w: w, viewport_h: h, user_agent: navigator.userAgent, touch: matchMedia("(pointer: coarse)").matches };
   D.device.media_recorder = !!(navigator.mediaDevices && window.MediaRecorder);
+  D.device.video_mp4 = document.createElement("video").canPlayType('video/mp4; codecs="avc1.4D401F, mp4a.40.2"') !== "";
   const ok = w >= 900 && !D.device.touch;
+  const media = D.device.media_recorder && D.device.video_mp4;
   const n = el(`<div class="col"><div class="card">
     <h3>Before you start</h3>
     <h1>Set up your screen</h1>
     <p>This study works best on a laptop or desktop computer with a mouse or trackpad. <b>Please turn your sound on, close other tabs and silence notifications.</b> The patient visit is a video with audio. Full screen keeps distractions out.</p>
-    ${ok && D.device.media_recorder ? "" : `<p class="err">${!ok ? "This screen looks like a phone or tablet. Please open this link on a laptop or desktop computer." : "This browser cannot record audio. Please open this link in a current version of Chrome, Edge or Firefox."}</p>`}
+    ${ok && media ? "" : `<p class="err">${!ok ? "This screen looks like a phone or tablet. Please open this link on a laptop or desktop computer." : "This browser cannot play the study video or record audio. Please open this link in a current version of Chrome, Edge or Firefox."}</p>`}
     <div class="actions"><button class="btn ghost" id="fs">Enter full screen</button><button class="btn" id="go">Continue</button></div>
   </div></div>`);
   app.append(n);
-  if (!(ok && D.device.media_recorder) && !TEST) { $("#go").disabled = true; log("device_blocked", { w, h }); }
+  if (!(ok && media) && !TEST) { $("#go").disabled = true; log("device_blocked", { w, h }); }
   $("#fs").onclick = async () => {
     try { await document.documentElement.requestFullscreen(); D.device.fullscreen = true; $("#fs").textContent = "Full screen on"; $("#fs").disabled = true; }
     catch (_) { D.device.fullscreen = false; $("#fs").textContent = "Full screen is not available here"; $("#fs").disabled = true; }
@@ -832,12 +834,32 @@ function sPractice() {
     screen("practice_done", "Training");
     const n = el(`<div class="col"><div class="card">
       <h3>Practice complete</h3>
-      <h1>The study visit is next</h1>
-      <p>The study visit takes about five minutes and is shown in three parts, with a short break between parts. It works the same way as the practice visit.</p>
+      <h1>Could you hear the patient clearly?</h1>
+      <p>The study visit has no captions, so <b>you need to hear the conversation clearly.</b></p>
+      <div class="field">${optsHTML("hear", ["Yes", "No"])}</div>
+      <div id="fix" hidden>
+        <p><b>Please check that your sound is on and your volume is up, or try headphones.</b> Then play the sample and answer again.</p>
+        <video id="snd" playsinline preload="auto" style="width:100%;max-width:420px;border-radius:6px;background:#000;display:block"></video>
+        <div class="actions" style="justify-content:flex-start"><button class="btn ghost" id="play">Play sample</button></div>
+      </div>
+      <p>The study visit takes about three minutes and is shown in three parts, with a short break between parts. It works the same way as the practice visit.</p>
       <div class="actions"><button class="btn" id="go">Continue</button></div>
     </div></div>`);
     app.append(n);
-    $("#go").onclick = next;
+    const c = $(".card", n), snd = $("#snd", n);
+    const ac = D.audio_check = { answers: [], plays: 0, final: null };
+    if (PRACTICE.video) snd.src = PRACTICE.video[0];
+    $("#play", n).onclick = () => { ac.plays++; snd.currentTime = 0; snd.play().catch(() => {}); };
+    $("#go").onclick = () => {
+      const v = radioVal(c, "hear");
+      if (!v) return setErr(c, "Please answer the question before continuing.");
+      const lastNo = [...ac.answers].reverse().find(a => a.answer === "No");
+      if (lastNo && ac.plays === lastNo.plays_before) return setErr(c, "Please play the sample after adjusting your sound, then answer again.");
+      ac.answers.push({ answer: v, at_ms: now(), plays_before: ac.plays });
+      if (v === "Yes" || ac.answers.filter(a => a.answer === "No").length >= 2) { ac.final = v.toLowerCase(); snd.pause(); log("audio_check", { final: ac.final }); next(); return; }
+      $("#fix", n).hidden = false; $$("input[name=hear]", c).forEach(r => r.checked = false);
+      setErr(c, "Please play the sample after adjusting your sound, then answer again.");
+    };
   });
 }
 
@@ -867,7 +889,7 @@ function sVisit() {
 function runVisit(cd, phase, cpSec, rec, onDone) {
   const g = D.condition, C = CONDITIONS[g];
   const lines = cd.segments.flat();
-  const VIDEO = !!(cd.video && !QS.has("novideo"));
+  const VIDEO = !!(cd.video && !(TEST && QS.has("novideo")));
   const segDur = VIDEO ? cd.durations.slice() : cd.segments.map(seg => seg.reduce((s, l) => s + lineDur(l[1]), 0));
   const total = segDur.reduce((a, b) => a + b, 0);
   const segEnds = []; let acc = 0;
@@ -967,12 +989,15 @@ function runVisit(cd, phase, cpSec, rec, onDone) {
   }
 
   /* playback */
-  let played = 0, lineStart = 0, lineLen = 0, playing = false, vT = 0, videoFailed = false;
-  function fallbackToText(k, done, why) {
-    if (videoFailed) return; videoFailed = true; vlog("fallback_text", { why });
-    stage.classList.remove("has-video"); vid.pause(); vid.hidden = true; $(".speakers", n).hidden = false;
-    playing = false; played = k ? segEnds[k - 1] : 0;
-    playSegment(k, done);
+  let played = 0, lineStart = 0, lineLen = 0, playing = false, vT = 0, watch = 0;
+  let videoFailed = false;
+  function videoExit(why) {
+    if (videoFailed) return; videoFailed = true;
+    vlog("video_failed", { why }); log("video_failed", { phase, part: curSeg + 1, why });
+    try { vid.pause(); } catch (_) {}
+    DRT.stop(); clearInterval(timeIv); clearInterval(watch);
+    D.exit_reason = "video_failed";
+    endStudyEarly();
   }
   const timeIv = setInterval(() => {
     const p = VIDEO ? vT : played + (playing ? Math.min(lineLen, (performance.now() - lineStart) * SPEED / 1000) : 0);
@@ -989,6 +1014,7 @@ function runVisit(cd, phase, cpSec, rec, onDone) {
 
   /* video playback: captions and AI draft items follow the video clock */
   function playVideoSegment(k, done) {
+    if (videoFailed) return;
     curSeg = k; inPause = false;
     const seg = cd.segments[k], cues = cd.cues[k], segStart = k ? segEnds[k - 1] : 0;
     const pending = (cd.items[k] || []).slice();
@@ -1010,9 +1036,15 @@ function runVisit(cd, phase, cpSec, rec, onDone) {
       raf = requestAnimationFrame(tick);
     };
     vid.ontimeupdate = tick;
-    vid.onerror = () => { if (!playing) fallbackToText(k, done, "media_error"); };
+    vid.onerror = () => videoExit("media_error");
+    let lastT = -1, stuck = 0, blocked = false;
+    clearInterval(watch);
+    watch = setInterval(() => {              // a video that stops advancing for 25 seconds ends the session
+      if (over || blocked || !playing) return;
+      if (vid.currentTime === lastT) { if (++stuck >= 25) videoExit("stalled"); } else { lastT = vid.currentTime; stuck = 0; }
+    }, 1000);
     vid.onended = () => {
-      if (over) return; over = true; cancelAnimationFrame(raf);
+      if (over) return; over = true; cancelAnimationFrame(raf); clearInterval(watch);
       if (pending.length) releaseList(k, pending.splice(0));
       vT = segEnds[k]; fill.style.width = (vT / total * 100) + "%";
       cap.innerHTML = ""; playing = false; DRT.stop(); vlog("ended"); done();
@@ -1021,18 +1053,18 @@ function runVisit(cd, phase, cpSec, rec, onDone) {
       vid.playbackRate = SPEED;
       const pr = vid.play();
       if (pr && pr.catch) pr.then(() => { vlog("play"); if (!playing) { playing = true; DRT.start(phase, dot, k + 1); } raf = requestAnimationFrame(tick); }).catch(err => {
-        if (err && err.name !== "NotAllowedError") return fallbackToText(k, done, String(err));
-        vlog("play_blocked", { error: String(err) });
+        if (err && err.name !== "NotAllowedError") return videoExit(String(err));
+        vlog("play_blocked", { error: String(err) }); blocked = true;
         ov.hidden = false;
         ov.innerHTML = `<div class="big">Part ${k + 1} of ${cd.segments.length}</div><div class="sub">Click to start this part of the visit.</div><button class="btn" id="ovplay">Play</button>`;
-        $("#ovplay", ov).onclick = () => { ov.hidden = true; start(); };
+        $("#ovplay", ov).onclick = () => { ov.hidden = true; blocked = false; start(); };
       });
     };
     start();
   }
 
   function playSegment(k, done) {
-    if (VIDEO && !videoFailed) return playVideoSegment(k, done);
+    if (VIDEO) return playVideoSegment(k, done);
     curSeg = k; inPause = false;
     const seg = cd.segments[k];
     $("#vstat", n).textContent = `Part ${k + 1} of ${cd.segments.length}`;
@@ -1174,7 +1206,7 @@ function runVisit(cd, phase, cpSec, rec, onDone) {
   }
 
   /* start overlay */
-  ov.innerHTML = `<div class="big">${phase === "practice" ? "Practice visit" : "Study visit"}</div><div class="sub">Click Start when you are ready. Remember to press the space bar whenever the dot appears.</div><button class="btn" id="ovgo">Start</button>`;
+  ov.innerHTML = `<div class="big">${phase === "practice" ? "Practice visit" : "Study visit"}</div><div class="sub">Click Start when you are ready. <b>The video plays from start to end and cannot be paused or replayed.</b> Remember to press the space bar whenever the dot appears.</div><button class="btn" id="ovgo">Start</button>`;
   $("#ovgo", ov).onclick = () => {
     ov.hidden = true; rec.visit_start_ms = now(); log("visit_start", { phase });
     if (selfTA) selfTA.focus();
@@ -1468,10 +1500,24 @@ async function sUpload() {
 }
 
 /* backup: if the page closes before the final save, send what we have (no audio) */
-window.addEventListener("pagehide", () => {
+function sendPartial() {
   if (uploaded || !CONFIG.ENDPOINT || !D.consent || !navigator.sendBeacon) return;
-  try { navigator.sendBeacon(CONFIG.ENDPOINT, new Blob([JSON.stringify({ kind: "partial", participant_id: D.participant_id, group: D.condition, test: TEST, record: D })], { type: "text/plain" })); } catch (_) {}
-});
+  try { navigator.sendBeacon(CONFIG.ENDPOINT, new Blob([JSON.stringify({ kind: "partial", participant_id: D.participant_id, group: D.condition, test: TEST, record: D })], { type: "text/plain" })); uploaded = true; } catch (_) {}
+}
+window.addEventListener("pagehide", sendPartial);
+
+/* the study video could not play: save what we have and end the session */
+function endStudyEarly() {
+  REC.stopAll && REC.stopAll();
+  sendPartial();
+  screen("ended_video_failed", "Finish");
+  app.append(el(`<div class="col"><div class="card">
+    <h3>Study ended</h3>
+    <h1>The video could not be played</h1>
+    <p>We are sorry. The visit video could not play in this browser, so the study cannot continue. <b>Please close this page.</b></p>
+    <p>If you would like to try again, open the link in a current version of Chrome, Edge or Firefox on a laptop or desktop computer with a stable internet connection.${CONFIG.CONTACT_EMAIL ? ` Questions: ${esc(CONFIG.CONTACT_EMAIL)}.` : ""}</p>
+  </div></div>`));
+}
 
 /* 18. Debrief + session data */
 function drtSummary() {
@@ -1584,6 +1630,7 @@ if (JUMP === "practice") step = FLOW.indexOf(sAssign) - 1;
 if (JUMP === "visit") {
   const jg = (QS.get("g") || "G4").toUpperCase(), cg = CONDITIONS[jg] ? jg : "G4";
   D.condition = cg; D.condition_label = CONDITIONS[cg].label; D.factors = CONDITIONS[cg]; D.assignment_method = "test_jump";
+  D.consent = { agreed: true, at_ms: now(), test_jump: true };
   step = FLOW.indexOf(sCaseIntro) - 1;
 }
 next();
