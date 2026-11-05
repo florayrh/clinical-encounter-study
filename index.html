@@ -96,10 +96,13 @@ input[type=range]{width:100%;accent-color:var(--ink)}
 .spk .rl{font-size:.68rem;color:var(--stage-muted);letter-spacing:.08em;text-transform:uppercase}
 .caption{min-height:4.4em;padding:12px 6% 16px;font-size:clamp(.82rem,1.55vw,1.08rem);line-height:1.45;display:flex;align-items:center}
 .caption b{font-weight:600;margin-right:.45em}
-.badge{position:absolute;top:12px;right:14px;font-size:.68rem;letter-spacing:.07em;text-transform:uppercase;display:flex;align-items:center;gap:6px}
+.stage video{flex:1;min-height:0;width:100%;object-fit:contain;background:#000;display:block}
+.stage.has-video .caption{position:absolute;left:0;right:0;bottom:0;min-height:0;background:rgba(0,0,0,.62);color:#fff;padding:8px 6% 10px;z-index:2}
+.stage.has-video .caption:empty{display:none}
+.badge{z-index:2;position:absolute;top:12px;right:14px;font-size:.68rem;letter-spacing:.07em;text-transform:uppercase;display:flex;align-items:center;gap:6px}
 .badge i{width:8px;height:8px;border-radius:50%;background:var(--stage-ink);animation:blink 1.6s infinite}
 @keyframes blink{50%{opacity:.25}}
-.drt-dot{position:absolute;top:12px;left:50%;width:18px;height:18px;margin-left:-9px;border-radius:50%;background:var(--stage-ink);opacity:0;pointer-events:none}
+.drt-dot{position:absolute;top:14px;left:50%;width:28px;height:28px;margin-left:-14px;border-radius:50%;background:var(--stage-ink);box-shadow:0 0 0 4px rgba(255,255,255,.25);opacity:0;pointer-events:none;z-index:3}
 .drt-dot.on{opacity:1}
 .overlay{position:absolute;inset:0;background:var(--overlay);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:24px;color:var(--stage-ink)}
 .overlay .big{font-family:var(--serif);font-size:clamp(1.05rem,2.2vw,1.45rem)}
@@ -168,7 +171,8 @@ const CONFIG = {
   ENDPOINT: "https://script.google.com/macros/s/AKfycbzWAb3N5umDQ7WS7TUMLxSnTIve40dYqazpqk-gJ3erExmmRmmVOtnH-3bBSST5iEB-/exec",  // Google Apps Script web app URL
   GIFT_CARD_FORM_URL: "",     // separate form for the gift card, not linked to responses
   CONTACT_EMAIL: "",          // shown on the consent and debrief pages
-  IRB_PROTOCOL: ""            // shown on the consent page
+  IRB_PROTOCOL: "",           // shown on the consent page
+  SHOW_CAPTIONS: true         // show the spoken text under the video
 };
 
 /* ---------- URL parameters ----------
@@ -186,6 +190,7 @@ const cleanId = v => (v || "").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 40);
 /* ---------- settings ---------- */
 const FAST = TEST && (QS.get("fast") === "1" || location.hash === "#fast");
 const SPEED = FAST ? 8 : 1;
+const DRT_SPEED = 1;   // the dot runs at real timing in every mode
 const CP_SECONDS = 30;                              // checkpoint length, equal across conditions
 const PRACTICE_CP_SECONDS = 20;
 const BASELINE_SECONDS = 30;
@@ -211,78 +216,62 @@ const CASE = {
   reference_diagnosis: "Pulmonary embolism",
   patient: { name: "Dana Reyes", initials: "DR", label: "Patient, 34" },
   intro: "Dana Reyes, 34, is a new patient at your primary care clinic.",
+  video: ["videos/case_part1.mp4", "videos/case_part2.mp4", "videos/case_part3.mp4"],
+  durations: [36.05, 30.04, 39.06],
+  cues: [[0, 1.26, 14.98, 16.2, 27.86, 30.04], [0, 2.39, 14.9, 16.2], [0, 1.51, 14.78, 17.2, 22.1, 29.98]],   // start time (s) of each line
+  subs: [
+    [[0, "D", "What brings you in today?"], [1.26, "P", "I've had chest pain for about four days."], [3.77, "P", "It comes and goes, mostly on the right side, and sometimes it's sharp."], [7.64, "P", "I thought it was my reflux."], [9.5, "P", "I've had that on and off for years, usually after coffee or spicy food, and I had a lot of both last week."], [14.98, "D", "Why last week?"], [16.2, "P", "I drove to Savannah to help my sister move. About nine hours each way."], [20.4, "P", "Lots of boxes and three flights of stairs. I got back last Sunday."], [24.34, "P", "But we had a nice walk along the river one evening."], [27.86, "D", "Any medications or allergies?"], [30.04, "P", "Omeprazole when the reflux is bad, and my birth control pill."], [34.73, "P", "No allergies."]],
+    [[0, "D", "What makes the pain worse?"], [2.39, "P", "Taking a deep breath. If I yawn, it catches right here."], [6.5, "P", "Maybe it's a little worse after dinner, but it's hard to tell."], [10.26, "P", "It stays in one spot."], [12.01, "P", "No fever, just a little cough yesterday."], [14.9, "D", "Anything else going on?"], [16.2, "P", "Work is stressful. We have a big deadline, and I haven't slept well."], [19.9, "P", "I had panic attacks in college, so maybe it's that."], [22.67, "P", "Oh, and my left calf is sore, probably from the stairs."], [25.6, "P", "It feels tight when I walk, and my ankle swells a little by the end of the day."]],
+    [[0, "D", "Any shortness of breath?"], [1.51, "P", "Yes, actually. Yesterday I had to stop halfway up the stairs at work."], [6.67, "P", "That's not like me. I run three times a week."], [10.22, "P", "My heart has been racing a little too, but I assumed it was the coffee."], [14.78, "D", "Any family history of blood clots?"], [17.2, "P", "Not that I know of. My mom had a vein problem in her leg after surgery once."], [22.1, "D", "Your heart rate is 108, your oxygen is 94 percent, and your temperature is 37.4."], [28.55, "D", "Blood pressure is normal."], [29.98, "P", "Is 94 bad?"], [31.9, "P", "Oh, my cat knocked over my coffee this morning, so I haven't had any caffeine today."], [36.6, "P", "That's probably why I'm a little shaky."]]
+  ],   // captions: [start (s), speaker, text]
   segments: [
     [
-      ["D", "Good morning, Ms. Reyes. What brings you in today?"],
-      ["P", "Hi. I've had this chest pain for about four days now. It comes and goes. I figured it was my reflux acting up again, but it hasn't gone away."],
-      ["D", "I'm sorry to hear that. Where exactly do you feel it?"],
-      ["P", "Mostly here, on the right side of my chest, under the breast. Sometimes it's sharp."],
-      ["D", "You mentioned reflux. Have you had that before?"],
-      ["P", "On and off for years. Usually after spicy food or coffee. And I had a lot of both last week. My sister and I ate out every night."],
-      ["D", "Oh, were you traveling?"],
-      ["P", "I drove down to Savannah to help her move into her new place. About nine hours each way. I got back last Sunday."],
-      ["D", "That's a long drive. How did the move go?"],
-      ["P", "Exhausting. Lots of boxes and lots of stairs. Her new apartment is on the third floor, of course. But the city is beautiful. We walked along the river one evening."],
-      ["D", "Sounds like it was partly a nice break. Are you taking any medications right now?"],
-      ["P", "Just omeprazole when the reflux is bad. And my birth control pill. That's it."],
-      ["D", "Any allergies to medications?"],
-      ["P", "No, none."]
+      ["D", "What brings you in today?"],
+      ["P", "I've had chest pain for about four days. It comes and goes, mostly on the right side, and sometimes it's sharp. I thought it was my reflux. I've had that on and off for years, usually after coffee or spicy food, and I had a lot of both last week."],
+      ["D", "Why last week?"],
+      ["P", "I drove to Savannah to help my sister move. About nine hours each way. Lots of boxes and three flights of stairs. I got back last Sunday. But we had a nice walk along the river one evening."],
+      ["D", "Any medications or allergies?"],
+      ["P", "Omeprazole when the reflux is bad, and my birth control pill. No allergies."]
     ],
     [
-      ["D", "Let's go back to the pain. Does anything make it worse?"],
-      ["P", "Taking a deep breath, actually. If I yawn or take a big breath, it catches right here."],
-      ["D", "Is it worse after you eat, or when you lie down?"],
-      ["P", "Maybe a little after dinner. I'm not sure. It's hard to tell."],
-      ["D", "Does the pain spread anywhere, like your arm, your jaw, or your back?"],
-      ["P", "No, it stays in one spot."],
-      ["D", "Any fever, cough, or cold symptoms?"],
-      ["P", "No fever. I coughed a little yesterday, but nothing much."],
-      ["D", "How has work been? Anything stressful going on?"],
-      ["P", "Work is a lot right now. We have a big deadline at the end of the month, and I haven't been sleeping well. I had a couple of panic attacks in college, so part of me wonders if it's that."],
-      ["D", "That's helpful to know. Any other aches or pains since the trip?"],
-      ["P", "My left calf has been sore, but I think that's from carrying boxes up all those stairs. It feels tight when I walk."],
-      ["D", "Have you noticed any swelling in that leg?"],
-      ["P", "Maybe a little around the ankle by the end of the day. I didn't think much of it."]
+      ["D", "What makes the pain worse?"],
+      ["P", "Taking a deep breath. If I yawn, it catches right here. Maybe it's a little worse after dinner, but it's hard to tell. It stays in one spot. No fever, just a little cough yesterday."],
+      ["D", "Anything else going on?"],
+      ["P", "Work is stressful. We have a big deadline, and I haven't slept well. I had panic attacks in college, so maybe it's that. Oh, and my left calf is sore, probably from the stairs. It feels tight when I walk, and my ankle swells a little by the end of the day."]
     ],
     [
-      ["D", "Have you been short of breath at all?"],
-      ["P", "Now that you mention it, yes. Yesterday I had to stop halfway up the stairs at my office. That's not like me. I run three times a week."],
-      ["D", "Have you felt your heart racing?"],
-      ["P", "A little. I assumed it was the coffee."],
-      ["D", "Have you or anyone in your family had blood clots?"],
-      ["P", "Not that I know of. My mom had some problem with the veins in her leg after a surgery once, but I don't know the details."],
-      ["D", "Okay. The nurse checked your vital signs before I came in. Your temperature is 37.4, your heart rate is 108, and your oxygen level is 94 percent. Your blood pressure is normal."],
-      ["P", "Is 94 bad? I always thought it should be close to 100."],
-      ["D", "It's a little lower than I'd expect for you. I'd like to look into this further today."],
-      ["P", "Okay. I'm glad I came in, then. My sister kept telling me it was nothing."],
-      ["D", "Before we finish, is there anything else you've noticed?"],
-      ["P", "I don't think so. Oh, my cat knocked over my coffee this morning, so I haven't had any caffeine today. That's probably why I'm a little shaky."]
+      ["D", "Any shortness of breath?"],
+      ["P", "Yes, actually. Yesterday I had to stop halfway up the stairs at work. That's not like me. I run three times a week. My heart has been racing a little too, but I assumed it was the coffee."],
+      ["D", "Any family history of blood clots?"],
+      ["P", "Not that I know of. My mom had a vein problem in her leg after surgery once."],
+      ["D", "Your heart rate is 108, your oxygen is 94 percent, and your temperature is 37.4. Blood pressure is normal."],
+      ["P", "Is 94 bad? Oh, my cat knocked over my coffee this morning, so I haven't had any caffeine today. That's probably why I'm a little shaky."]
     ]
   ],
   // AI draft items released at each checkpoint (cp1, cp2) and after the visit (final)
   items: [
     [
-      { id: "i01", after: 1, sec: "Chief complaint", text: "Intermittent chest pain for 4 days." },
-      { id: "i02", after: 3, sec: "History of present illness", text: "Pain on the right side of the chest, below the breast. Sometimes sharp." },
-      { id: "i03", after: 5, sec: "Pertinent history", text: "Reflux for several years, triggered by spicy food and coffee. Increased intake of both last week. Patient attributes current pain to reflux." },
-      { id: "i04", after: 9, sec: "Recent travel and activity", text: "Drove to Savannah to help sister move, about 9 hours each way. Returned last Sunday. Carried boxes and climbed stairs during the move." },
-      { id: "i05", after: 11, sec: "Medications", text: "Omeprazole as needed.", seeded: "omission: oral contraceptive pill not documented" },
-      { id: "i06", after: 13, sec: "Allergies", text: "No known drug allergies." }
+      { id: "i01", after: 1, at: 3.77, sec: "Chief complaint", text: "Intermittent chest pain for 4 days." },
+      { id: "i02", after: 1, at: 7.64, sec: "History of present illness", text: "Pain on the right side of the chest. Sometimes sharp." },
+      { id: "i03", after: 1, at: 14.98, sec: "Pertinent history", text: "Reflux for several years, triggered by spicy food and coffee. Increased intake of both last week. Patient attributes current pain to reflux." },
+      { id: "i04", after: 3, at: 24.34, sec: "Recent travel and activity", text: "Drove to Savannah to help sister move, about 9 hours each way. Returned last Sunday. Carried boxes up three flights of stairs during the move." },
+      { id: "i05", after: 5, at: 34.73, sec: "Medications", text: "Omeprazole as needed.", seeded: "omission: oral contraceptive pill not documented" },
+      { id: "i06", after: 5, at: 35.99, sec: "Allergies", text: "No known drug allergies." }
     ],
     [
-      { id: "i07", after: 1, sec: "History of present illness", text: "Pain worse with deep inspiration and yawning." },
-      { id: "i08", after: 3, sec: "History of present illness", text: "Unclear relationship to meals. Possibly slightly worse after dinner." },
-      { id: "i09", after: 5, sec: "History of present illness", text: "No radiation to arm, jaw, or back." },
-      { id: "i10", after: 7, sec: "History of present illness", text: "No fever. Mild cough yesterday." },
-      { id: "i11", after: 9, sec: "Pertinent history", text: "Work stress with an upcoming deadline. Poor sleep. History of panic attacks in college." },
-      { id: "i12", after: 13, sec: "History of present illness", text: "Right calf soreness, attributed by patient to carrying boxes. Tightness with walking. Possible mild ankle swelling at end of day.", seeded: "error: laterality (patient reported left calf)" }
+      { id: "i07", after: 1, at: 6.5, sec: "History of present illness", text: "Pain worse with deep inspiration and yawning." },
+      { id: "i08", after: 1, at: 10.26, sec: "History of present illness", text: "Unclear relationship to meals. Possibly slightly worse after dinner." },
+      { id: "i09", after: 1, at: 12.01, sec: "History of present illness", text: "Pain does not radiate." },
+      { id: "i10", after: 1, at: 14.9, sec: "History of present illness", text: "No fever. Mild cough yesterday." },
+      { id: "i11", after: 3, at: 22.67, sec: "Pertinent history", text: "Work stress with an upcoming deadline. Poor sleep. History of panic attacks in college. Patient wonders if pain is stress related." },
+      { id: "i12", after: 3, at: 29.9, sec: "History of present illness", text: "Right calf soreness, attributed by patient to stairs. Tightness with walking. Possible mild ankle swelling at end of day.", seeded: "error: laterality (patient reported left calf)" }
     ],
     [
-      { id: "i13", after: 1, sec: "History of present illness", text: "Exertional shortness of breath. Had to stop halfway up stairs at work yesterday. Runs three times a week at baseline." },
-      { id: "i14", after: 3, sec: "History of present illness", text: "Palpitations, attributed by patient to coffee." },
-      { id: "i15", after: 5, sec: "Pertinent history", text: "No known personal history of blood clots. Mother had a leg vein problem after surgery, details unknown." },
-      { id: "i16", after: 6, sec: "Vitals", text: "T 37.4 °C, HR 108, SpO2 94% on room air, BP within normal limits." },
-      { id: "i17", after: 11, sec: "History of present illness", text: "Feels slightly shaky today. No caffeine this morning." }
+      { id: "i13", after: 1, at: 10.22, sec: "History of present illness", text: "Exertional shortness of breath. Had to stop halfway up stairs at work yesterday. Runs three times a week at baseline." },
+      { id: "i14", after: 1, at: 14.78, sec: "History of present illness", text: "Palpitations, attributed by patient to coffee." },
+      { id: "i15", after: 3, at: 21.97, sec: "Pertinent history", text: "No known personal history of blood clots. Mother had a leg vein problem after surgery." },
+      { id: "i16", after: 4, at: 29.98, sec: "Vitals", text: "T 37.4 °C, HR 108, SpO2 94% on room air, BP within normal limits." },
+      { id: "i17", after: 5, at: 38.9, sec: "History of present illness", text: "Feels slightly shaky today. No caffeine this morning." }
     ]
   ]
 };
@@ -290,10 +279,17 @@ const CASE = {
 const PRACTICE = {
   id: "practice-ankle",
   patient: { name: "James Kim", initials: "JK", label: "Patient, 27" },
+  video: ["videos/practice_part1.mp4", "videos/practice_part2.mp4"],
+  durations: [11.12, 8.1],
+  cues: [[0, 2.3, 5.81, 7.37], [0, 2.28, 5.63]],
+  subs: [
+    [[0, "D", "Hi there. What brings you in today?"], [2.3, "P", "I twisted my right ankle playing football yesterday."], [5.81, "D", "Can you put weight on it?"], [7.37, "P", "A little, but it hurts on the outside of the ankle."]],
+    [[0, "D", "Any numbness or tingling in your foot?"], [2.28, "P", "No, just swelling and some bruising."], [5.63, "D", "Okay. Let's take a look."]]
+  ],
   segments: [
     [
       ["D", "Hi there. What brings you in today?"],
-      ["P", "I twisted my right ankle playing basketball yesterday."],
+      ["P", "I twisted my right ankle playing football yesterday."],
       ["D", "Can you put weight on it?"],
       ["P", "A little, but it hurts on the outside of the ankle."]
     ],
@@ -305,24 +301,24 @@ const PRACTICE = {
   ],
   items: [
     [
-      { id: "p01", after: 1, sec: "Chief complaint", text: "Right ankle injury yesterday while playing basketball." },
-      { id: "p02", after: 3, sec: "History of present illness", text: "Able to bear some weight. Pain on the outer side of the ankle." }
+      { id: "p01", after: 1, at: 5.81, sec: "Chief complaint", text: "Right ankle injury yesterday while playing football." },
+      { id: "p02", after: 3, at: 10.9, sec: "History of present illness", text: "Able to bear some weight. Pain on the outer side of the ankle." }
     ],
     [
-      { id: "p03", after: 1, sec: "History of present illness", text: "No numbness or tingling. Swelling and some bruising." }
+      { id: "p03", after: 1, at: 5.63, sec: "History of present illness", text: "No numbness or tingling. Swelling and some bruising." }
     ]
   ]
 };
 
 const EXAMPLE_NOTE = "Chief complaint\n- Sore throat for 3 days.\n\nHistory of present illness\n- Sore throat began 3 days ago, worse with swallowing.\n- Reports feeling feverish. No cough or runny nose.\n- Roommate had similar symptoms last week.\n\nMedications\n- None.\n\nAllergies\n- Penicillin (rash).\n\nVitals\n- T 38.3 °C, HR 92.\n\nAssessment and plan\n- To be completed by the clinician.";
 
-const COMMON_INSTR = "You are the clinician in this visit. Watch the encounter closely. The visit is shown in three parts, with a short break between parts. When the visit ends, you will give your diagnostic assessment. The video cannot be paused, rewound, or replayed. You are responsible for the clinical note for this visit and will sign it at the end.";
+const COMMON_INSTR = "You are the clinician in this visit. Watch the encounter closely. The visit is shown in three parts, with a short break between parts. <b>When the visit ends, you will give your diagnostic assessment.</b> <b>The video cannot be paused, rewound, or replayed.</b> You are responsible for the clinical note for this visit and will sign it at the end.";
 const INSTR = {
-  G1: "You will document this visit yourself. Write the clinical note in the panel beside the video while you watch. The visit pauses briefly twice, and you may keep writing during the pauses.",
-  G2: "You will document this visit yourself after it ends. Do not take notes during the visit. After the visit, you will write the full note from memory.",
-  G3: "An ambient AI scribe will listen to this visit and draft the clinical note. The draft is not shown during the visit. After the visit, you will review the AI draft and sign it.",
-  G4: "An ambient AI scribe will listen to this visit and draft the clinical note. The draft appears in the panel beside the video and is updated as the conversation goes on. After the visit, you will review the final draft and sign it.",
-  G5: "An ambient AI scribe will listen to this visit and draft the clinical note. The draft appears in the panel beside the video and is updated as the conversation goes on. At each pause, confirm or correct each new item in the draft before the visit continues. After the visit, you will review the final draft and sign it."
+  G1: "<b>You will document this visit yourself. Write the clinical note in the panel beside the video while you watch.</b> The visit has two short breaks, and you may keep writing during the breaks.",
+  G2: "<b>You will document this visit yourself after it ends. Do not take notes during the visit.</b> After the visit, you will write the full note from memory.",
+  G3: "<b>An ambient AI scribe will listen to this visit and draft the clinical note. The draft is not shown during the visit.</b> After the visit, you will review the AI draft and sign it.",
+  G4: "<b>An ambient AI scribe will listen to this visit and draft the clinical note. The draft appears in the panel beside the video and is updated as the conversation goes on.</b> After the visit, you will review the final draft and sign it.",
+  G5: "<b>An ambient AI scribe will listen to this visit and draft the clinical note.</b> The draft appears in the panel beside the video and is updated as the conversation goes on. <b>At each break, confirm or correct each new item in the draft before the visit continues.</b> After the visit, you will review the final draft and sign it."
 };
 const PAUSE_MSG = {
   G1: "You may keep writing your note.",
@@ -481,7 +477,7 @@ const DRT = {
     this.stop(); this.phase = phase; this.dot = dot; this.seg = seg;
     this.sched(rand(3000, 5000));
   },
-  sched(designMs) { clearTimeout(this.t1); this.t1 = setTimeout(() => this.show(), designMs / SPEED); },
+  sched(designMs) { clearTimeout(this.t1); this.t1 = setTimeout(() => this.show(), designMs / DRT_SPEED); },
   show() {
     if (!this.phase || !this.dot) return;
     this.dot.classList.add("on");
@@ -495,7 +491,7 @@ const DRT = {
     if (this.dot) this.dot.classList.remove("on");
     D.drt.push({ phase: p.phase, segment: p.segment, trial: p.trial, onset_ms: p.onset_ms, rt_ms: rt == null ? null : Math.round(rt), outcome, response_target: target });
     if (this.phase && outcome !== "truncated") {
-      const elapsedDesign = (performance.now() - p._on) * SPEED;
+      const elapsedDesign = (performance.now() - p._on) * DRT_SPEED;
       this.sched(Math.max(500, rand(3000, 5000) - elapsedDesign));
     }
   },
@@ -535,7 +531,7 @@ let downloads = null;
 /* ======================================================================
    FLOW
    ====================================================================== */
-const FLOW = [sConsent, sDevice, sPre, sIntro, sThinkAloud, sDrtIntro, sBaselineWatch, sBaselineType, sAssign, sPracticeIntro, sPractice, sCaseIntro, sVisit, sDiagnosis, sRecall, sSummary, sPost, sEnd, sUpload, sDebrief];
+const FLOW = [sConsent, sDevice, sPre, sAttitudes, sIntro, sThinkAloud, sDrtIntro, sBaselineWatch, sBaselineType, sAssign, sPracticeIntro, sPractice, sCaseIntro, sVisit, sDiagnosis, sRecall, sSummary, sLoad, sChecks, sEnd, sUpload, sDebrief];
 let step = -1;
 function next() { step++; FLOW[step](); }
 
@@ -570,9 +566,9 @@ function sConsent() {
     <div class="card">
       <h3>Information and consent</h3>
       <h1>Diagnosing from a recorded patient visit</h1>
-      <p>Researchers at the Fox School of Business, Temple University, are studying how clinicians gather and use information during patient visits. You will watch one simulated primary care visit, give your diagnostic assessment, and answer questions about the visit. The study takes about 30 minutes. Please use a laptop or desktop computer with a microphone, in a quiet place.</p>
-      <p>We record your answers, what you type, when you click, how quickly you respond to an on-screen signal, and whether you leave this page. While you work out your diagnosis, we audio-record you thinking aloud. The microphone is used only during that step and a short practice. We do not record video of you. Your responses and audio are stored without your name in a secure account managed by the research team and are used only for this research.</p>
-      <p>Taking part is voluntary. You may stop at any time by closing this page. After you finish, you will get a link to a separate form for your gift card. That form is not linked to your answers.</p>
+      <p>Researchers at the Fox School of Business, Temple University, are studying how clinicians gather and use information during patient visits. You will watch one simulated primary care visit, give your diagnostic assessment, and answer questions about the visit. <b>The study takes about 30 minutes. Please use a laptop or desktop computer with a microphone, in a quiet place.</b></p>
+      <p>We record your answers, what you type, when you click, how quickly you respond to an on-screen signal, and whether you leave this page. <b>While you work out your diagnosis, we audio-record you thinking aloud.</b> The microphone is used only during that step and a short practice. We do not record video of you. Your responses and audio are stored without your name in a secure account managed by the research team and are used only for this research.</p>
+      <p><b>Taking part is voluntary. You may stop at any time by closing this page.</b> After you finish, you will get a link to a separate form for your gift card. That form is not linked to your answers.</p>
       <p class="hint">${CONFIG.IRB_PROTOCOL ? `Temple University IRB protocol ${esc(CONFIG.IRB_PROTOCOL)}. ` : ""}${CONFIG.CONTACT_EMAIL ? `Questions: ${esc(CONFIG.CONTACT_EMAIL)}` : ""}</p>
       <label class="opt"><input type="checkbox" id="agree"><span>I have read this information and I agree to take part.</span></label>
       <div class="actions"><button class="btn" id="go">Continue</button></div>
@@ -600,12 +596,35 @@ function sPre() {
     <div class="field"><label for="age">What is your age? <span class="hint">(in years)</span></label>
       <input type="number" id="age" min="18" max="99" step="1" inputmode="numeric"></div>
     ${likertHTML("scribe_use", "How often do you use an ambient AI scribe in your clinical work?", FREQUENCY)}
-    <div class="dxblock"><h3>AI attitude (Grassini 2023)</h3></div>
+    <div class="actions"><button class="btn" id="go">Continue</button></div>
+  </div></div>`);
+  app.append(n);
+  $("#go").onclick = () => {
+    const c = $(".card", n);
+    const v = {
+      role: $("#role").value, years_clinical: $("#years").value, specialty: $("#spec").value, age: $("#age").value,
+      scribe_use_1to7: radioVal(c, "scribe_use")
+    };
+    const missing = Object.entries(v).filter(([, x]) => x === "" || x == null);
+    if (missing.length) return setErr(c, "Please answer every question before continuing.");
+    const age = Number(v.age);
+    if (!Number.isInteger(age) || age < 18 || age > 99) return setErr(c, "Please enter your age as a whole number between 18 and 99.");
+    ["years_clinical", "age", "scribe_use_1to7"].forEach(k => v[k] = Number(v[k]));
+    D.pre = v; next();
+  };
+}
+
+/* 2b. Views on technology */
+function sAttitudes() {
+  screen("attitudes", "Background");
+  const n = el(`<div class="col"><div class="card">
+    <h3>About you</h3>
+    <h1>Your views on technology</h1>
+    <p class="lede"><b>Please rate from Strongly disagree to Strongly agree.</b></p>
     ${likertHTML("ai1", "I believe that AI will improve my life.")}
     ${likertHTML("ai2", "I believe that AI will improve my work.")}
     ${likertHTML("ai3", "I think I will use AI technology in the future.")}
     ${likertHTML("ai4", "I think AI technology is positive for humanity.")}
-    <div class="dxblock"><h3>Personal innovativeness with IT (Agarwal and Prasad 1998)</h3></div>
     ${likertHTML("piit1", "If I heard about a new information technology, I would look for ways to experiment with it.")}
     ${likertHTML("piit2", "Among my peers, I am usually the first to try out new information technologies.")}
     ${likertHTML("piit3", "I like to experiment with new information technologies.")}
@@ -615,19 +634,15 @@ function sPre() {
   $("#go").onclick = () => {
     const c = $(".card", n);
     const v = {
-      role: $("#role").value, years_clinical: $("#years").value, specialty: $("#spec").value, age: $("#age").value,
-      scribe_use_1to7: radioVal(c, "scribe_use"),
       ai_attitude_1: radioVal(c, "ai1"), ai_attitude_2: radioVal(c, "ai2"), ai_attitude_3: radioVal(c, "ai3"), ai_attitude_4: radioVal(c, "ai4"),
       piit_1: radioVal(c, "piit1"), piit_2: radioVal(c, "piit2"), piit_3: radioVal(c, "piit3")
     };
     const missing = Object.entries(v).filter(([, x]) => x === "" || x == null);
     if (missing.length) return setErr(c, "Please answer every question before continuing.");
-    const age = Number(v.age);
-    if (!Number.isInteger(age) || age < 18 || age > 99) return setErr(c, "Please enter your age as a whole number between 18 and 99.");
-    Object.keys(v).forEach(k => { if (k !== "role" && k !== "specialty") v[k] = Number(v[k]); });
+    Object.keys(v).forEach(k => v[k] = Number(v[k]));
     v.ai_attitude_mean = (v.ai_attitude_1 + v.ai_attitude_2 + v.ai_attitude_3 + v.ai_attitude_4) / 4;
     v.piit_mean = (v.piit_1 + v.piit_2 + v.piit_3) / 3;
-    D.pre = v; next();
+    Object.assign(D.pre, v); next();
   };
 }
 
@@ -641,7 +656,7 @@ function sDevice() {
   const n = el(`<div class="col"><div class="card">
     <h3>Before you start</h3>
     <h1>Set up your screen</h1>
-    <p>This study works best on a laptop or desktop computer with a mouse or trackpad. Please close other tabs and silence notifications. Full screen keeps distractions out.</p>
+    <p>This study works best on a laptop or desktop computer with a mouse or trackpad. <b>Please turn your sound on, close other tabs and silence notifications.</b> The patient visit is a video with audio. Full screen keeps distractions out.</p>
     ${ok && D.device.media_recorder ? "" : `<p class="err">${!ok ? "This screen looks like a phone or tablet. Please open this link on a laptop or desktop computer." : "This browser cannot record audio. Please open this link in a current version of Chrome, Edge or Firefox."}</p>`}
     <div class="actions"><button class="btn ghost" id="fs">Enter full screen</button><button class="btn" id="go">Continue</button></div>
   </div></div>`);
@@ -661,8 +676,8 @@ function sIntro() {
     <div class="card">
       <h3>Background</h3>
       <h1>What an ambient AI scribe does</h1>
-      <p>An ambient AI scribe listens to the conversation between a clinician and a patient and drafts the clinical note. It picks out the relevant information and organizes it into note sections such as the history of present illness, medications, and allergies.</p>
-      <p>In this study, the scribe drafts the history sections only. It does not suggest a diagnosis or a treatment plan. The clinician reviews the draft, corrects it if needed, and signs it.</p>
+      <p>An ambient AI scribe <b>listens to the conversation between a clinician and a patient and drafts the clinical note.</b> It picks out the relevant information and organizes it into note sections such as the history of present illness, medications, and allergies.</p>
+      <p>In this study, <b>the scribe drafts the history sections only. It does not suggest a diagnosis or a treatment plan.</b> The clinician reviews the draft, corrects it if needed, and signs it.</p>
       <div class="example"><div class="eh">Example draft from a different patient</div><div class="doc">${esc(EXAMPLE_NOTE)}</div></div>
     </div>
     <div class="card" id="cc">
@@ -694,7 +709,7 @@ function sThinkAloud() {
   const n = el(`<div class="col"><div class="card">
     <h3>Thinking aloud</h3>
     <h1>Say what you are thinking</h1>
-    <p>After the visit, you will work out your diagnosis while thinking aloud. Say everything that goes through your mind, as it comes, even if it seems unimportant or incomplete. You do not need to explain or justify your thoughts to us. Just keep talking. If you go quiet, the screen will remind you to keep talking.</p>
+    <p>After the visit, you will work out your diagnosis while thinking aloud. <b>Say everything that goes through your mind, as it comes, even if it seems unimportant or incomplete.</b> You do not need to explain or justify your thoughts to us. <b>Just keep talking.</b> If you go quiet, the screen will remind you to keep talking.</p>
     <p>Let's practice once. Click Start practice, then think aloud while you answer this question:</p>
     <p class="doc">How many windows are there in the place where you live?</p>
     ${recBar("tabar")}
@@ -732,7 +747,7 @@ function sDrtIntro() {
   const n = el(`<div class="col"><div class="card">
     <h3>Response task</h3>
     <h1>Press the space bar when the dot appears</h1>
-    <p>Throughout the visit, a small white dot will appear now and then at the top of the video. Press the space bar as quickly as you can each time you see it. Keep doing this the whole time, including while you read or type.</p>
+    <p>Throughout the visit, a small white dot will appear now and then at the top of the video. <b>Press the space bar as quickly as you can each time you see it. Keep doing this the whole time, including while you read or type.</b></p>
     <p>You will practice this twice, for 30 seconds each. First you will only watch the screen. Then you will copy a short passage while responding to the dot.</p>
     <div class="actions"><button class="btn" id="go">Start practice 1</button></div>
   </div></div>`);
@@ -802,8 +817,8 @@ function sPracticeIntro() {
   const n = el(`<div class="col"><div class="card">
     <h3>Practice visit</h3>
     <h1>How documentation works in your visit</h1>
-    <p>${esc(INSTR[g])}</p>
-    <p>First, a one-minute practice visit lets you try the screen. Keep pressing the space bar when the dot appears. Nothing from the practice visit is used in the study.</p>
+    <p>${INSTR[g]}</p>
+    <p>First, a one-minute practice visit lets you try the screen. <b>Keep pressing the space bar when the dot appears.</b> Nothing from the practice visit is used in the study.</p>
     <div class="actions"><button class="btn" id="go">Start practice visit</button></div>
   </div></div>`);
   app.append(n);
@@ -833,9 +848,9 @@ function sCaseIntro() {
   const n = el(`<div class="col"><div class="card">
     <h3>Study visit</h3>
     <h1>${esc(CASE.intro)}</h1>
-    <p>${esc(COMMON_INSTR)}</p>
-    <p><strong>${esc(INSTR[g])}</strong></p>
-    <p>Keep pressing the space bar whenever the dot appears.</p>
+    <p>${COMMON_INSTR}</p>
+    <p>${INSTR[g]}</p>
+    <p><b>Keep pressing the space bar whenever the dot appears.</b></p>
     <div class="actions"><button class="btn" id="go">Go to the visit</button></div>
   </div></div>`);
   app.append(n);
@@ -852,19 +867,22 @@ function sVisit() {
 function runVisit(cd, phase, cpSec, rec, onDone) {
   const g = D.condition, C = CONDITIONS[g];
   const lines = cd.segments.flat();
-  const total = lines.reduce((s, l) => s + lineDur(l[1]), 0);
+  const VIDEO = !!(cd.video && !QS.has("novideo"));
+  const segDur = VIDEO ? cd.durations.slice() : cd.segments.map(seg => seg.reduce((s, l) => s + lineDur(l[1]), 0));
+  const total = segDur.reduce((a, b) => a + b, 0);
   const segEnds = []; let acc = 0;
-  cd.segments.forEach(seg => { acc += seg.reduce((s, l) => s + lineDur(l[1]), 0); segEnds.push(acc); });
+  segDur.forEach(d => { acc += d; segEnds.push(acc); });
   const ticks = segEnds.slice(0, -1).map(t => `<span class="tick" style="left:${(t / total * 100).toFixed(2)}%"></span>`).join("");
   const isAI = C.documenter === "ai";
   if (g === "G1" && !rec.self_note) rec.self_note = { snapshots: [], keystrokes: {} };
 
   const n = el(`<div class="wide"><div class="visit">
     <div>
-      <div class="stage" id="stage">
+      <div class="stage${VIDEO ? " has-video" : ""}" id="stage">
         <div class="drt-dot" id="dot"></div>
         ${isAI ? '<div class="badge"><i></i>AI scribe recording</div>' : ""}
-        <div class="speakers">
+        ${VIDEO ? '<video id="vid" playsinline preload="auto" disablepictureinpicture controlslist="nodownload noplaybackrate" tabindex="-1"></video>' : ""}
+        <div class="speakers"${VIDEO ? " hidden" : ""}>
           <div class="spk" id="spkD"><div class="avatar">You</div><div class="nm">Clinician</div><div class="rl">You</div></div>
           <div class="spk" id="spkP"><div class="avatar">${esc(cd.patient.initials)}</div><div class="nm">${esc(cd.patient.name)}</div><div class="rl">${esc(cd.patient.label)}</div></div>
         </div>
@@ -878,6 +896,14 @@ function runVisit(cd, phase, cpSec, rec, onDone) {
   </div></div>`);
   app.append(n);
   const stage = $("#stage", n), ov = $("#ov", n), cap = $("#cap", n), fill = $("#fill", n), panel = $("#panel", n), dot = $("#dot", n);
+  const vid = $("#vid", n);
+  rec.video_events = [];
+  const vlog = (type, extra = {}) => rec.video_events.push({ type, at_ms: now(), part: curSeg + 1, t: vid ? Math.round(vid.currentTime * 100) / 100 : null, ...extra });
+  if (VIDEO) {
+    vid.src = cd.video[0]; vid.dataset.part = "0"; vid.load();
+    vid.addEventListener("contextmenu", e => e.preventDefault());
+    ["waiting", "stalled", "error"].forEach(ev => vid.addEventListener(ev, () => vlog(ev)));
+  }
 
   /* panel per condition */
   const aiItems = [];               // released draft items with review state
@@ -903,9 +929,9 @@ function runVisit(cd, phase, cpSec, rec, onDone) {
   let newIds = [];
 
   /* live draft: release each AI item right after the line it is drawn from */
-  function releaseItems(k, lineIdx) {
+  function releaseItems(k, lineIdx) { releaseList(k, (cd.items[k] || []).filter(it => it.after === lineIdx)); }
+  function releaseList(k, its) {
     if (!(g === "G4" || g === "G5")) return;
-    const its = (cd.items[k] || []).filter(it => it.after === lineIdx);
     if (!its.length) return;
     its.forEach(it => {
       aiItems.push({ ...it, seg: k, original: it.text, status: g === "G5" ? "pending" : "shown", actions: [] });
@@ -941,9 +967,15 @@ function runVisit(cd, phase, cpSec, rec, onDone) {
   }
 
   /* playback */
-  let played = 0, lineStart = 0, lineLen = 0, playing = false;
+  let played = 0, lineStart = 0, lineLen = 0, playing = false, vT = 0, videoFailed = false;
+  function fallbackToText(k, done, why) {
+    if (videoFailed) return; videoFailed = true; vlog("fallback_text", { why });
+    stage.classList.remove("has-video"); vid.pause(); vid.hidden = true; $(".speakers", n).hidden = false;
+    playing = false; played = k ? segEnds[k - 1] : 0;
+    playSegment(k, done);
+  }
   const timeIv = setInterval(() => {
-    const p = played + (playing ? Math.min(lineLen, (performance.now() - lineStart) * SPEED / 1000) : 0);
+    const p = VIDEO ? vT : played + (playing ? Math.min(lineLen, (performance.now() - lineStart) * SPEED / 1000) : 0);
     $("#vtime", n).textContent = `${fmt(p)} / ${fmt(total)}`;
   }, 250);
 
@@ -951,9 +983,56 @@ function runVisit(cd, phase, cpSec, rec, onDone) {
     const who = l[0];
     $("#spkD", n).classList.toggle("on", who === "D");
     $("#spkP", n).classList.toggle("on", who === "P");
+    if (VIDEO && !CONFIG.SHOW_CAPTIONS) return;
     cap.innerHTML = `<span><b>${who === "D" ? "Clinician:" : esc(cd.patient.name.split(" ")[0]) + ":"}</b>${esc(l[1])}</span>`;
   }
+
+  /* video playback: captions and AI draft items follow the video clock */
+  function playVideoSegment(k, done) {
+    curSeg = k; inPause = false;
+    const seg = cd.segments[k], cues = cd.cues[k], segStart = k ? segEnds[k - 1] : 0;
+    const pending = (cd.items[k] || []).slice();
+    $("#vstat", n).textContent = `Part ${k + 1} of ${cd.segments.length}`;
+    if (g === "G4" || g === "G5") { newIds = []; if (aiItems.length) renderDraft(); const ps = $("#pstat", panel); if (ps) ps.textContent = "Listening"; }
+    if (vid.dataset.part !== String(k)) { vid.src = cd.video[k]; vid.dataset.part = String(k); }
+    fill.style.transition = "none";
+    let li = -1, over = false, raf = 0;
+    const tick = () => {
+      if (over) return;
+      const t = vid.currentTime;
+      const cs = cd.subs ? cd.subs[k] : cues.map((c, i) => [c, seg[i][0], seg[i][1]]);
+      let j = cs.length - 1; while (j > 0 && cs[j][0] > t) j--;
+      if (j !== li) { li = j; showLine([cs[j][1], cs[j][2]]); }
+      const due = pending.filter(it => it.at <= t);
+      if (due.length) { due.forEach(it => pending.splice(pending.indexOf(it), 1)); releaseList(k, due); }
+      vT = Math.min(total, segStart + t);
+      fill.style.width = (vT / total * 100) + "%";
+      raf = requestAnimationFrame(tick);
+    };
+    vid.ontimeupdate = tick;
+    vid.onerror = () => { if (!playing) fallbackToText(k, done, "media_error"); };
+    vid.onended = () => {
+      if (over) return; over = true; cancelAnimationFrame(raf);
+      if (pending.length) releaseList(k, pending.splice(0));
+      vT = segEnds[k]; fill.style.width = (vT / total * 100) + "%";
+      cap.innerHTML = ""; playing = false; DRT.stop(); vlog("ended"); done();
+    };
+    const start = () => {
+      vid.playbackRate = SPEED;
+      const pr = vid.play();
+      if (pr && pr.catch) pr.then(() => { vlog("play"); if (!playing) { playing = true; DRT.start(phase, dot, k + 1); } raf = requestAnimationFrame(tick); }).catch(err => {
+        if (err && err.name !== "NotAllowedError") return fallbackToText(k, done, String(err));
+        vlog("play_blocked", { error: String(err) });
+        ov.hidden = false;
+        ov.innerHTML = `<div class="big">Part ${k + 1} of ${cd.segments.length}</div><div class="sub">Click to start this part of the visit.</div><button class="btn" id="ovplay">Play</button>`;
+        $("#ovplay", ov).onclick = () => { ov.hidden = true; start(); };
+      });
+    };
+    start();
+  }
+
   function playSegment(k, done) {
+    if (VIDEO && !videoFailed) return playVideoSegment(k, done);
     curSeg = k; inPause = false;
     const seg = cd.segments[k];
     $("#vstat", n).textContent = `Part ${k + 1} of ${cd.segments.length}`;
@@ -974,6 +1053,7 @@ function runVisit(cd, phase, cpSec, rec, onDone) {
 
   function checkpoint(k, resume) {
     inPause = true;
+    if (VIDEO && cd.video[k + 1]) { vid.src = cd.video[k + 1]; vid.dataset.part = String(k + 1); vid.load(); }
     const cp = { index: k + 1, condition: g, start_ms: now() };
     rec.checkpoints.push(cp);
     $("#vstat", n).textContent = "Break between parts";
@@ -1112,12 +1192,12 @@ function sDiagnosis() {
   const ord = ["most likely", "second most likely", "third most likely"];
   const dx = i => `<div class="dxblock">
       <div class="field"><label for="dx${i}">${i === 1 ? "Most likely diagnosis" : `Diagnosis ${i} <span class="hint">(optional)</span>`}</label><input type="text" id="dx${i}" autocomplete="off"></div>
-      ${likertHTML(`conf${i}`, `How confident are you in the ${ord[i - 1]} diagnosis?`, CONFIDENCE)}
+      ${likertHTML(`conf${i}`, "Please rate your confidence from Not at all confident to Completely confident.", CONFIDENCE)}
     </div>`;
   const n = el(`<div class="col"><div class="card">
     <h3>Your assessment</h3>
     <h1>What is going on with this patient?</h1>
-    <p class="lede">Think aloud the whole time you work on this page. Say everything that goes through your mind as you work out what is going on. Then list up to three diagnoses, from most to least likely. You cannot return to this page after you submit.</p>
+    <p class="lede"><b>Think aloud the whole time you work on this page.</b> Say everything that goes through your mind as you work out what is going on. Then list up to three diagnoses, from most to least likely. <b>You cannot return to this page after you submit.</b></p>
     ${recBar("dxbar")}
     ${dx(1)}${dx(2)}${dx(3)}
     <div class="actions"><button class="btn" id="go">Submit assessment</button></div>
@@ -1157,7 +1237,8 @@ function sRecall() {
   const n = el(`<div class="col"><div class="card">
     <h3>What you remember</h3>
     <h1>List what you remember</h1>
-    <div class="field"><label for="recall">List everything you remember about this patient from the visit: what the patient said, what you were told, and any findings. Write one item per line. Include details even if they seem unimportant. Do not explain or interpret the information. Just list it.</label>
+    <p>List everything you remember about this patient from the visit: what the patient said, what you were told, and any findings. <b>Write one item per line.</b> Include details even if they seem unimportant. <b>Do not explain or interpret the information. Just list it.</b></p>
+    <div class="field"><label for="recall">Your list</label>
       <textarea id="recall" style="min-height:260px" spellcheck="false"></textarea></div>
     <p class="mono hint" id="rt"></p>
     <div class="actions"><button class="btn" id="go" disabled>Continue</button></div>
@@ -1187,7 +1268,8 @@ function sSummary() {
   const n = el(`<div class="col"><div class="card">
     <h3>Case summary</h3>
     <h1>Summarize the case</h1>
-    <div class="field"><label for="sum">Summarize this patient's case in one to three sentences, as you would present it to a colleague. Bring together the findings you consider most important. Do not name a diagnosis.</label>
+    <p>Summarize this patient's case <b>in one to three sentences</b>, as you would present it to a colleague. Bring together the findings you consider most important. <b>Do not name a diagnosis.</b></p>
+    <div class="field"><label for="sum">Your summary</label>
       <textarea id="sum" style="min-height:130px"></textarea>
       <div class="wc" id="wc">0 of ${MAXW} words</div></div>
     <div class="actions"><button class="btn" id="go">Continue</button></div>
@@ -1208,19 +1290,41 @@ function sSummary() {
 }
 
 /* 15. Post-visit measures */
-function sPost() {
-  screen("post_visit", "Questions");
+function sLoad() {
+  screen("post_visit_load", "Questions");
   const n = el(`<div class="col"><div class="card">
     <h3>About the visit</h3>
     <h1>How the visit felt</h1>
-    <p class="lede">Rate the visit as a whole, from the start of the video to the end.</p>
-    ${likertHTML("tlx_mental", "Mental demand: how mentally demanding was the visit?", LOWHIGH)}
-    ${likertHTML("tlx_physical", "Physical demand: how physically demanding was the visit?", LOWHIGH)}
-    ${likertHTML("tlx_temporal", "Temporal demand: how hurried or rushed was the pace?", LOWHIGH)}
-    ${likertHTML("tlx_performance", "Performance: how successful were you in doing what you were asked?", PERFORMANCE)}
-    ${likertHTML("tlx_effort", "Effort: how hard did you have to work to reach your level of performance?", LOWHIGH)}
-    ${likertHTML("tlx_frustration", "Frustration: how insecure, irritated, or stressed were you?", LOWHIGH)}
-    <div class="dxblock"></div>
+    <p class="lede"><b>Please rate from Very low to Very high.</b></p>
+    ${likertHTML("tlx_mental", "How mentally demanding was the visit?", LOWHIGH)}
+    ${likertHTML("tlx_physical", "How physically demanding was the visit?", LOWHIGH)}
+    ${likertHTML("tlx_temporal", "How hurried or rushed was the pace of the visit?", LOWHIGH)}
+    ${likertHTML("tlx_performance", "How successful were you in accomplishing what you were asked to do?", PERFORMANCE)}
+    ${likertHTML("tlx_effort", "How hard did you have to work to accomplish your level of performance?", LOWHIGH)}
+    ${likertHTML("tlx_frustration", "How insecure, discouraged, irritated, stressed, and annoyed were you?", LOWHIGH)}
+    <div class="actions"><button class="btn" id="go">Continue</button></div>
+  </div></div>`);
+  app.append(n);
+  $("#go").onclick = () => {
+    const c = $(".card", n);
+    const tlx = {};
+    const tk = ["mental", "physical", "temporal", "performance", "effort", "frustration"];
+    tk.forEach(k => { const v = radioVal(c, "tlx_" + k); tlx[k] = v ? Number(v) : null; });
+    if (tk.some(k => tlx[k] == null)) return setErr(c, "Please answer every question before continuing.");
+    // NASA-TLX items, 1 = Very low (performance: 1 = Perfect, 7 = Failure), so higher = more workload on every item
+    tlx.raw_tlx_mean = tk.reduce((s, k) => s + tlx[k], 0) / tk.length;
+    tlx.core_mean = (tlx.mental + tlx.temporal + tlx.effort) / 3;
+    tlx.scale_note = "NASA-TLX (Hart and Staveland 1988) items adapted to the visit, 7-point, unweighted. Higher = more workload on every item. raw_tlx_mean = all six. core_mean = mental, temporal, effort.";
+    D.case.post = { nasa_tlx_1to7: tlx };
+    next();
+  };
+}
+
+function sChecks() {
+  screen("post_visit_checks", "Questions");
+  const n = el(`<div class="col"><div class="card">
+    <h3>About the visit</h3>
+    <h1>How the visit was set up</h1>
     <div class="field"><span class="qtext">For this visit, who was responsible for drafting the clinical note?</span>
       ${optsHTML("mc1", ["I wrote it during the visit", "I will write it after the visit", "An AI scribe drafted it", "Not sure"])}</div>
     <div class="field"><span class="qtext">During the visit, could you see a draft of the note?</span>
@@ -1232,18 +1336,10 @@ function sPost() {
   app.append(n);
   $("#go").onclick = () => {
     const c = $(".card", n);
-    const tlx = {};
-    const tk = ["mental", "physical", "temporal", "performance", "effort", "frustration"];
-    tk.forEach(k => { const v = radioVal(c, "tlx_" + k); tlx[k] = v ? Number(v) : null; });
-    if (tk.some(k => tlx[k] == null)) return setErr(c, "Please answer every question before continuing.");
-    tlx.raw_tlx_mean = tk.reduce((s, k) => s + tlx[k], 0) / tk.length;
     const names = ["mc1", "mc2", "mc3"];
     const v = {}; names.forEach(k => v[k] = radioVal(c, k));
     if (names.some(k => !v[k])) return setErr(c, "Please answer every question before continuing.");
-    D.case.post = {
-      nasa_tlx_1to7: tlx,
-      manipulation_check: { note_responsibility: v.mc1, saw_draft: v.mc2, asked_to_confirm: v.mc3 }
-    };
+    D.case.post.manipulation_check = { note_responsibility: v.mc1, saw_draft: v.mc2, asked_to_confirm: v.mc3 };
     next();
   };
 }
@@ -1482,6 +1578,14 @@ function sDebrief() {
   $("#again").onclick = () => { location.search = "?test=1"; };
 }
 
+/* test shortcut: ?test=1&jump=practice starts at group assignment, ?test=1&jump=visit&g=G4 starts at the study visit */
+const JUMP = TEST ? QS.get("jump") : null;
+if (JUMP === "practice") step = FLOW.indexOf(sAssign) - 1;
+if (JUMP === "visit") {
+  const jg = (QS.get("g") || "G4").toUpperCase(), cg = CONDITIONS[jg] ? jg : "G4";
+  D.condition = cg; D.condition_label = CONDITIONS[cg].label; D.factors = CONDITIONS[cg]; D.assignment_method = "test_jump";
+  step = FLOW.indexOf(sCaseIntro) - 1;
+}
 next();
 })();
 </script>
