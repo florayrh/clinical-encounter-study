@@ -156,6 +156,15 @@ details summary{cursor:pointer;font-weight:600}
 .gbtn .gd{font-size:.84rem;color:var(--muted)}
 .wc{font-size:.8rem;color:var(--muted);text-align:right}
 @media (prefers-reduced-motion:reduce){.recbar.on .recdot{animation:none}.badge i{animation:none}.track .fill{transition:none!important}.spk{transition:none}}
+/* unified text: every instruction, question, option and note uses the body size and color */
+.lede,.hint,.notice,.empty,.wc,.under,.ends,.recbar,.recbar.off,.ritem,.note-sec ul,.err,.qtext,label,.field label,.opt span,table.sum,.example .eh,.ritem .st,.gbtn .gk,.gbtn .gd{font-size:inherit;color:var(--ink)}
+.doc,.panel textarea,.kbd{font-family:var(--sans);font-size:inherit;color:var(--ink)}
+.likert label{font-size:.95rem;color:var(--ink)}
+h3,.panel-h .s,.note-sec h4,.steps li:not(.cur){color:var(--ink)}
+.overlay .sub{color:var(--stage-ink);font-size:inherit}
+.caption{gap:16px}.caption .mono{white-space:nowrap;flex:none}
+.mbox{border:2px solid var(--ink);border-radius:var(--r);padding:16px 18px;display:flex;flex-direction:column;gap:8px}.mbox .mlabel{font-weight:600}.mbox ul{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:6px}
+.consent h2{margin-top:6px}table.meta{border-collapse:collapse;width:100%}table.meta td{padding:4px 0;vertical-align:top}table.meta td:first-child{font-weight:600;width:9em;padding-right:12px}
 </style>
 
 </head>
@@ -178,8 +187,12 @@ details summary{cursor:pointer;font-weight:600}
 const CONFIG = {
   ENDPOINT: "https://script.google.com/macros/s/AKfycbzWAb3N5umDQ7WS7TUMLxSnTIve40dYqazpqk-gJ3erExmmRmmVOtnH-3bBSST5iEB-/exec",  // Google Apps Script web app URL
   GIFT_CARD_FORM_URL: "",     // separate form for the gift card, not linked to responses
-  CONTACT_EMAIL: "",          // shown on the consent and debrief pages
-  IRB_PROTOCOL: "",           // shown on the consent page
+  CONTACT_NAME: "Ruihan Yang",
+  CONTACT_EMAIL: "ruihan.yang0001@temple.edu",
+  CONTACT_PHONE: "608-658-3038",
+  INVESTIGATORS: "John D'Arcy, Sezgin Ayabakan, Ruihan Yang",
+  IRB_PROTOCOL: "",           // Temple IRB protocol number, shown on the consent page
+  GIFT_CARD_AMOUNT: "",       // e.g. "$20", shown on the consent page
   SHOW_CAPTIONS: false        // show the spoken text under the video
 };
 
@@ -326,12 +339,30 @@ const EXAMPLE_NOTE = "Chief complaint\n- Sore throat for 3 days.\n\nHistory of p
 
 const COMMON_INSTR = "You are the clinician in this visit. Watch the encounter closely. The visit is shown in three parts, with a short break between parts. <b>When the visit ends, you will give your diagnostic assessment.</b> <b>The video cannot be paused, rewound, or replayed.</b> You are responsible for the clinical note for this visit and will sign it at the end.";
 const INSTR = {
-  G1: "<b>You will document this visit yourself. Write the clinical note in the panel beside the video while you watch.</b> The visit has two short breaks, and you can keep writing during the breaks.",
-  G2: "<b>You will document this visit yourself after it ends. Do not take notes during the visit.</b> After the visit, you will write the full note from memory.",
-  G3: "<b>An ambient AI scribe will listen to this visit and draft the clinical note. The draft is not shown during the visit.</b> After the visit, you will review the AI draft and sign it.",
-  G4: "<b>An ambient AI scribe will listen to this visit and draft the clinical note. The draft appears in the panel beside the video and is updated as the conversation goes on.</b> After the visit, you will review the final draft and sign it.",
-  G5: "<b>An ambient AI scribe will listen to this visit and draft the clinical note.</b> The draft appears in the panel beside the video and is updated as the conversation goes on. <b>At each break, confirm or correct each new item in the draft before the visit continues.</b> After the visit, you will review the final draft and sign it."
+  G1: { title: "You write the clinical note during the visit", points: [
+    "Write the clinical note in the panel beside the video <b>while you watch</b>.",
+    "The visit has two short breaks, and you can keep writing during the breaks."] },
+  G2: { title: "You write the clinical note after the visit", points: [
+    "<b>Do not take notes during the visit.</b>",
+    "After the visit, you will write the full note <b>from memory</b>."] },
+  G3: { title: "An AI scribe writes the clinical note. You will not see it during the visit.", points: [
+    "An ambient AI scribe listens to the visit and drafts the clinical note.",
+    "<b>The draft is not shown during the visit.</b>",
+    "After the visit, you will review the AI draft and sign it."] },
+  G4: { title: "An AI scribe writes the clinical note. You will see it during the visit.", points: [
+    "An ambient AI scribe listens to the visit and drafts the clinical note.",
+    "<b>The draft appears in the panel beside the video</b> and is updated as the conversation goes on.",
+    "After the visit, you will review the final draft and sign it."] },
+  G5: { title: "An AI scribe writes the clinical note. You confirm or correct it at each break.", points: [
+    "An ambient AI scribe listens to the visit and drafts the clinical note.",
+    "The draft appears in the panel beside the video and is updated as the conversation goes on.",
+    "<b>At each break, confirm or correct each new item in the draft</b> before the visit continues.",
+    "After the visit, you will review the final draft and sign it."] }
 };
+function manipBox(g) {
+  const m = INSTR[g];
+  return `<div class="mbox"><div class="mlabel">How the clinical note is written in this study</div><h2>${m.title}</h2><ul>${m.points.map(x => `<li>${x}</li>`).join("")}</ul></div>`;
+}
 const PAUSE_MSG = {
   G1: "You can keep writing your note.",
   G2: "The next part will start automatically.",
@@ -581,15 +612,67 @@ async function sAssign() {
 /* 1. Consent */
 function sConsent() {
   screen("consent", "Consent");
+  const contact = `${esc(CONFIG.CONTACT_NAME)}, ${esc(CONFIG.CONTACT_EMAIL)}${CONFIG.CONTACT_PHONE ? `, ${esc(CONFIG.CONTACT_PHONE)}` : ""}`;
+  const gift = CONFIG.GIFT_CARD_AMOUNT ? `a ${esc(CONFIG.GIFT_CARD_AMOUNT)} gift card` : "a gift card";
   const n = el(`<div class="col">
     ${TEST ? `<p class="notice">Test mode. This session is not counted in group balancing.</p>` : ""}
-    <div class="card">
-      <h1>Diagnosing from a recorded patient visit</h1>
-      <p>Researchers at the Fox School of Business, Temple University, are studying how clinicians gather and use information during patient visits. You will watch one simulated primary care visit, give your diagnostic assessment, and answer questions about the visit. <b>The study takes about 30 minutes. Please use a laptop or desktop computer with a microphone, in a quiet place.</b></p>
-      <p>We record your answers, what you type, when you click, how quickly you respond to an on-screen signal, and whether you leave this page. <b>While you work out your diagnosis, we audio-record you thinking aloud.</b> The microphone is used only during that step and a short practice. We do not record video of you. Your responses and audio are stored without your name in a secure account managed by the research team and are used only for this research.</p>
-      <p><b>Taking part is voluntary. You may stop at any time by closing this page.</b> After you finish, you will get a link to a separate form for your gift card. That form is not linked to your answers.</p>
-      <p class="hint">${CONFIG.IRB_PROTOCOL ? `Temple University IRB protocol ${esc(CONFIG.IRB_PROTOCOL)}. ` : ""}${CONFIG.CONTACT_EMAIL ? `Questions: ${esc(CONFIG.CONTACT_EMAIL)}` : ""}</p>
-      <label class="opt"><input type="checkbox" id="agree"><span>I have read this information and I agree to take part.</span></label>
+    <div class="card consent">
+      <h1>Research consent form</h1>
+      <table class="meta"><tbody>
+        <tr><td>Title</td><td>How AI Affects Clinical Care</td></tr>
+        ${CONFIG.IRB_PROTOCOL ? `<tr><td>Protocol No.</td><td>${esc(CONFIG.IRB_PROTOCOL)}</td></tr>` : ""}
+        <tr><td>Sponsor</td><td>Temple University, Fox School of Business</td></tr>
+        <tr><td>Investigators</td><td>${esc(CONFIG.INVESTIGATORS)}</td></tr>
+        <tr><td>Address</td><td>1801 Liacouras Walk, Speakman Hall, Philadelphia, PA 19122, USA</td></tr>
+        <tr><td>Contact</td><td>${contact}</td></tr>
+      </tbody></table>
+      <p>You are being asked for your consent to take part in a research study about how artificial intelligence (AI) affects clinical care. This document gives a concise summary of the research. It describes the key information that we believe most people need to decide whether to take part. This study is conducted by researchers at Temple University.</p>
+
+      <h2>What should I know about this research?</h2>
+      <ul class="olist">
+        <li>Taking part in this research is voluntary. Whether you take part is up to you.</li>
+        <li>If you don't take part, it won't be held against you.</li>
+        <li>You can take part now and later drop out by closing this page, and it won't be held against you.</li>
+        <li>If you don't understand something, contact ${contact}.</li>
+        <li>You are encouraged to ask any questions you may have about the study or your participation before deciding whether to take part.</li>
+      </ul>
+
+      <h2>Who can take part in this research?</h2>
+      <p>You can take part if you are 21 or older and you are a physician or a medical student. Physicians at any career stage and in any specialty can take part. Nurse practitioners and physician assistants can also take part.</p>
+
+      <h2>How long will I be in this research?</h2>
+      <p>We expect that taking part will last <b>about 30 minutes</b>, in one sitting. Please use a laptop or desktop computer with a microphone and speakers or headphones, in a quiet place.</p>
+
+      <h2>Why is this research being done?</h2>
+      <p>This research is being conducted to understand how AI tools affect clinicians' work during patient visits. One such tool is ambient AI, an AI tool that automatically captures and summarizes the conversation during a medical consultation to assist with clinical documentation. By understanding how clinicians work with these tools, this study seeks to inform the effective and responsible use of AI tools in clinical care.</p>
+
+      <h2>What happens to me if I agree to take part in this research?</h2>
+      <p>You will complete a few short practice tasks, watch a short video of a simulated patient visit, and answer questions about yourself and the visit. <b>During parts of the study, you will be asked to say your thoughts out loud while you work, and your voice will be audio-recorded.</b> We also record your answers and how you use the study page. We do not record video of you.</p>
+
+      <h2>Could being in this research hurt me?</h2>
+      <p>This study involves minimal risk. The patient in the video is fictional, and no Protected Health Information is collected. Your audio recording could identify you by your voice, so your answers and recordings are stored without your name in a secure account that only the research team can access. If you stop early, the answers you gave so far may be kept. There is a small risk that confidentiality could be breached.</p>
+
+      <h2>Will being in this research benefit me?</h2>
+      <p>There may be no direct benefit to you. However, taking part may increase your awareness and understanding of how AI tools, such as ambient AI scribes, work during patient visits and how they may shape clinicians' work. You may also gain insight into your own attitudes toward AI in clinical care and reflect on how you work with these tools. In addition, your participation will help researchers, clinicians, and developers understand how to design and use AI tools effectively and responsibly in clinical care.</p>
+
+      <h2>Will I be compensated for taking part?</h2>
+      <p>As a token of appreciation, you will receive ${gift} after you complete the study. At the end, you will receive a code to enter in a separate gift card form. That form is not linked to your study answers. Compensation requires completing the study in full.</p>
+
+      <h2>Who can answer my questions about this research?</h2>
+      <p>If you have questions, concerns, or complaints, or think this research has impacted you negatively, contact the research team: ${contact}.</p>
+      <p>This research is being overseen by an Institutional Review Board ("IRB"). An IRB is a group of people who perform an independent review of research studies. You may contact the Temple University IRB at (215) 707-3390 or irb@temple.edu if:</p>
+      <ul class="olist">
+        <li>You have questions, concerns, or complaints that are not being answered by the research team.</li>
+        <li>You are not getting answers from the research team.</li>
+        <li>You cannot reach the research team.</li>
+        <li>You want to talk to someone else about the research.</li>
+        <li>You have questions about your rights as a research subject.</li>
+      </ul>
+
+      <h2>What else should I know about this research?</h2>
+      <p>If you have questions, you may contact ${esc(CONFIG.CONTACT_NAME)} at ${esc(CONFIG.CONTACT_EMAIL)}. Thank you for considering taking part in our research.</p>
+
+      <label class="opt"><input type="checkbox" id="agree"><span>I have read this information, I am 21 or older, and I agree to take part in this research.</span></label>
       <div class="actions"><button class="btn" id="go">Continue</button></div>
     </div></div>`);
   app.append(n);
@@ -612,7 +695,7 @@ function sPre() {
     <div class="field"><label for="spec">Specialty</label>
       <select id="spec"><option value="">Select</option><option>Internal medicine</option><option>Family medicine</option><option>Emergency medicine</option><option>Pediatrics</option><option>Obstetrics and gynecology</option><option>Surgery</option><option>Psychiatry</option><option>Not yet chosen</option><option>Other</option></select></div>
     <div class="field"><label for="age">What is your age? <span class="hint">(in years)</span></label>
-      <input type="number" id="age" min="18" max="99" step="1" inputmode="numeric"></div>
+      <input type="number" id="age" min="21" max="99" step="1" inputmode="numeric"></div>
     <div class="field"><label for="gender">What is your gender?</label>
       <select id="gender"><option value="">Select</option><option>Female</option><option>Male</option><option>Other</option><option>Prefer not to say</option></select></div>
     ${likertHTML("scribe_use", "How often do you use an ambient AI scribe in your clinical work?", FREQUENCY)}
@@ -629,7 +712,7 @@ function sPre() {
     const missing = Object.entries(v).filter(([, x]) => x === "" || x == null);
     if (missing.length) return setErr(c, "Please answer every question before continuing.");
     const age = Number(v.age);
-    if (!Number.isInteger(age) || age < 18 || age > 99) return setErr(c, "Please enter your age as a whole number between 18 and 99.");
+    if (!Number.isInteger(age) || age < 21 || age > 99) return setErr(c, "Please enter your age as a whole number between 21 and 99.");
     ["years_clinical", "age", "scribe_use_1to7"].forEach(k => v[k] = Number(v[k]));
     D.pre = v; next();
   };
@@ -767,8 +850,9 @@ function sThinkAloud() {
   const MIN_SEC = 10;
   const n = el(`<div class="col"><div class="card">
 <h3>Practice</h3>
-    <h1>Say what you are thinking</h1>
-    <p><b>This is a short practice of thinking aloud.</b> After the main video, you will work out your diagnosis while thinking aloud. <b>Say everything that goes through your mind, as it comes, even if it seems unimportant or incomplete.</b> You do not need to explain or justify your thoughts to us. <b>Just keep talking.</b> If you go quiet, the screen will remind you to keep talking.</p>
+    <h1>Say what you are thinking (think aloud)</h1>
+    <p><b>This is a short practice of thinking aloud.</b> Thinking aloud means saying out loud whatever you are thinking while you work on a task, as if you were talking to yourself.</p>
+    <p>Later in the study, you will be asked to think aloud. <b>Say everything that goes through your mind, as it comes, even if it seems unimportant or incomplete.</b> You do not need to explain or justify your thoughts to us. <b>Just keep talking.</b> If you go quiet, the screen will remind you to keep talking.</p>
     <div class="stepcard" id="s1">
       <p><b>Step 1 of 2. Record a short practice.</b> Click <b>Start recording</b>, then think aloud while you answer the question below. Talk for at least ${MIN_SEC} seconds, then click <b>Stop recording</b>.</p>
       <p class="doc">How many windows are there in the place where you live?</p>
@@ -877,7 +961,7 @@ function sDrtIntro() {
   const say = t => { msg.textContent = t; };
   function schedule() {
     armed = true; waiting = false;
-    tShow = setTimeout(() => { dot.classList.add("on"); waiting = true; tMiss = setTimeout(() => { if (!waiting) return; waiting = false; dot.classList.remove("on"); tr.misses++; say(`The dot went away. Press the ${KEY} as soon as you see it.`); schedule(); }, 3000); }, (1200 + Math.random() * 1500) / SPEED);
+    tShow = setTimeout(() => { dot.classList.add("on"); waiting = true; tMiss = setTimeout(() => { if (!waiting) return; waiting = false; dot.classList.remove("on"); tr.misses++; say("The dot went away. Press the key as soon as you see it."); schedule(); }, 3000); }, (1200 + Math.random() * 1500) / SPEED);
   }
   function onKey(e) {
     if (!armed || e.repeat) return;
@@ -960,7 +1044,7 @@ function sPracticeIntro() {
   const n = el(`<div class="col"><div class="card">
     <h3>Practice</h3>
     <h1>Practice video</h1>
-    <p>${INSTR[g]}</p>
+    ${manipBox(g)}
     <p>First, a short practice video lets you get familiar with the interface. Nothing from the practice video is used in the study.</p>
     <p class="box"><b>Remember the white dot:</b> During the video, press the ${KEY} every time the white dot appears at the top of the video.</p>
     <div class="actions"><button class="btn" id="go">Start practice video</button></div>
@@ -1013,8 +1097,8 @@ function sCaseIntro() {
   const n = el(`<div class="col"><div class="card">
     <h1>${esc(CASE.intro)}</h1>
     <p>${COMMON_INSTR}</p>
-    <p>${INSTR[g]}</p>
-    <p><b>Keep pressing the ${KEY} whenever the dot appears.</b></p>
+    ${manipBox(g)}
+    <p class="box"><b>Remember the white dot:</b> During the video, press the ${KEY} every time the white dot appears at the top of the video.</p>
     <div class="actions"><button class="btn" id="go">Go to the main video</button></div>
   </div></div>`);
   app.append(n);
@@ -1055,7 +1139,7 @@ function runVisit(cd, phase, cpSec, rec, onDone) {
       </div>
       <div class="track" aria-hidden="true"><div class="fill" id="fill"></div>${ticks}</div>
       <div class="under"><span id="vstat">Ready</span><span class="mono" id="vtime">0:00 / ${fmt(total)}</span></div>
-      ${phase === "practice" ? `<p class="box" style="margin-top:10px"><b>Press the ${KEY} every time the white dot appears at the top of the video.</b></p>` : ""}
+      <p class="box" style="margin-top:10px"><b>Press the ${KEY} every time the white dot appears at the top of the video.</b></p>
     </div>
     <aside class="panel" id="panel" aria-label="Clinical note"></aside>
   </div></div>`);
@@ -1254,7 +1338,7 @@ function runVisit(cd, phase, cpSec, rec, onDone) {
       body.append(el(`<p class="hint">Check each new item against what the patient said. Confirm it if it is accurate. Correct it if anything is wrong.</p>`));
       const prior = aiItems.filter(i => !released.includes(i));
       if (prior.length) {
-        const pd = el(`<details><summary>Earlier items (${prior.length})</summary><ul style="margin-top:6px;font-size:.88rem"></ul></details>`);
+        const pd = el(`<details><summary>Earlier items (${prior.length})</summary><ul style="margin-top:6px"></ul></details>`);
         prior.forEach(i => { const li = document.createElement("li"); li.textContent = i.text; $("ul", pd).append(li); });
         body.append(pd);
       }
@@ -1407,13 +1491,13 @@ function sDiagnosis() {
 /* 14. Information retention: free recall */
 function sRecall() {
   screen("free_recall", "Questions");
-  const MIN = 120, LIMIT = 180;
+  const MIN = 150, LIMIT = 180;
   const n = el(`<div class="col"><div class="card">
     <h1>List what you remember</h1>
     <p>List everything you remember about this patient from the visit: what the patient said, what you were told, and any findings. <b>Write one item per line.</b> Include details even if they seem unimportant. <b>Do not explain or interpret the information. Just list it.</b></p>
     <div class="field"><label for="recall">Your list</label>
       <textarea id="recall" style="min-height:260px" spellcheck="false"></textarea></div>
-    <p class="mono hint" id="rt"></p>
+    <p id="rt"></p>
     <div class="actions"><button class="btn" id="go" disabled>Continue</button></div>
   </div></div>`);
   app.append(n);
@@ -1422,7 +1506,7 @@ function sRecall() {
   const t0 = now();
   const iv = countdown(LIMIT, r => {
     const used = LIMIT - r;
-    $("#rt").textContent = r > 0 ? `Time remaining ${fmt(r)}` : "Time is up. Click Continue.";
+    $("#rt").textContent = used < MIN ? `Please keep going. You can continue in ${fmt(MIN - used)}.` : r > 0 ? `You can continue now. Time remaining ${fmt(r)}.` : "Time is up. Click Continue.";
     if (used >= MIN) $("#go").disabled = false;
   }, () => { $("#recall").readOnly = true; $("#go").disabled = false; });
   $("#go").onclick = () => {
@@ -1444,17 +1528,21 @@ function sSummary() {
     <div class="field"><label for="sum">Your summary</label>
       <textarea id="sum" style="min-height:130px"></textarea>
       <div class="wc" id="wc">0 of ${MAXW} words</div></div>
-    <div class="actions"><button class="btn" id="go">Continue</button></div>
+    <p id="st"></p>
+    <div class="actions"><button class="btn" id="go" disabled>Continue</button></div>
   </div></div>`);
   app.append(n);
   const words = () => ($("#sum").value.trim().match(/\S+/g) || []).length;
   $("#sum").addEventListener("input", () => { $("#wc").textContent = `${words()} of ${MAXW} words`; });
   $("#sum").addEventListener("paste", e => e.preventDefault());
-  const t0 = now();
+  $("#sum").focus();
+  const t0 = now(), MIN = 150;
+  const iv = countdown(MIN, r => { $("#st").textContent = r > 0 ? `Please take your time. You can continue in ${fmt(r)}.` : "You can continue now."; }, () => { $("#go").disabled = false; });
   $("#go").onclick = () => {
     const c = $(".card", n), w = words();
     if (w < 8) return setErr(c, "Please write a short summary of the case.");
     if (w > MAXW) return setErr(c, `Please shorten your summary to ${MAXW} words or fewer. It is ${w} words now.`);
+    clearInterval(iv);
     D.case.integration = { summary_statement: $("#sum").value.trim(), words: w, time_ms: now() - t0,
       coding_note: "Score integration: cross-segment coverage of focal cues, linking statements (temporal, enabling condition to consequence), higher-order synthesis, three-part structure, factual accuracy, irrelevant content (reverse). Score separately: semantic qualifiers and abstraction (interpretive). Code whether a diagnosis was named. Two blinded raters." };
     next();
@@ -1675,7 +1763,7 @@ function sDebrief() {
   if (cur) cur.end_ms = now();
   const code = D.completion_code || D.participant_id;
   const n = el(`<div class="col"><div class="card">
-    <h1>Thank you for taking part</h1>
+    <h1>Thank you very much for your participation</h1>
     <p>Your responses have been saved.</p>
     <p>Your gift card code is</p>
     <p class="bigcode">${esc(code)}</p>
