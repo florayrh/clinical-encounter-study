@@ -102,7 +102,7 @@ input[type=range]{width:100%;accent-color:var(--ink)}
 .badge{z-index:2;position:absolute;top:12px;right:14px;font-size:.68rem;letter-spacing:.07em;text-transform:uppercase;display:flex;align-items:center;gap:6px}
 .badge i{width:8px;height:8px;border-radius:50%;background:var(--stage-ink);animation:blink 1.6s infinite}
 @keyframes blink{50%{opacity:.25}}
-.drt-dot{position:absolute;top:14px;left:50%;width:28px;height:28px;margin-left:-14px;border-radius:50%;background:var(--stage-ink);box-shadow:0 0 0 4px rgba(255,255,255,.25);opacity:0;pointer-events:none;z-index:3}
+.drt-dot{position:absolute;top:14px;left:50%;width:30px;height:30px;margin-left:-15px;border-radius:50%;background:#fff;border:4px solid #000;box-shadow:0 0 0 3px #fff;opacity:0;pointer-events:none;z-index:3}
 .drt-dot.on{opacity:1}
 .overlay{position:absolute;inset:0;background:var(--overlay);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:24px;color:var(--stage-ink)}
 .overlay .big{font-family:var(--serif);font-size:clamp(1.05rem,2.2vw,1.45rem)}
@@ -140,6 +140,14 @@ details summary{cursor:pointer;font-weight:600}
 .recbar.on .recdot{background:var(--ink);animation:blink 1.6s infinite}
 .recbar.off{color:var(--muted)}
 .recbar .rectime{margin-left:auto}
+.meter{flex:0 0 90px;height:8px;border:1px solid var(--line);border-radius:4px;overflow:hidden}
+.meter i{display:block;height:100%;width:0;background:var(--ink);transition:width .1s linear}
+.olist{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:8px}
+.box{border:1px solid var(--ink);border-radius:var(--r);padding:12px 14px}
+.stepcard{border-top:1px solid var(--line);padding-top:14px;display:flex;flex-direction:column;gap:12px}
+.stepcard[aria-disabled="true"]{opacity:.45}
+.kbd{font-family:var(--mono);border:1px solid var(--ink);border-bottom-width:2px;border-radius:4px;padding:1px 6px;font-size:.9em;white-space:nowrap}
+.bigcode{font-family:var(--mono);font-size:1.6rem;font-weight:600;letter-spacing:.06em}
 .groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
 .gbtn{font:inherit;text-align:left;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;cursor:pointer;display:flex;flex-direction:column;gap:4px}
 .gbtn:hover{border-color:var(--ink)}
@@ -192,15 +200,16 @@ const FAST = TEST && (QS.get("fast") === "1" || location.hash === "#fast");
 const SPEED = FAST ? 8 : 1;
 const DRT_SPEED = 1;
 const IS_MAC = /Mac/i.test(navigator.userAgent || "") || /Mac/i.test(navigator.platform || "");
-const KEY = IS_MAC ? "control key" : "Ctrl key";
-const KEY_WHERE = IS_MAC ? "control (⌃), at the bottom left of your keyboard, not command" : "Ctrl, at the bottom left of your keyboard";   // the dot runs at real timing in every mode
+const KEY = "Control\u00a0(Ctrl)\u00a0key";   // non-breaking spaces keep the key name on one line
+const KEY_WHERE = "bottom left of your keyboard";
+const KEY_BOX = `<b>Where is the key?</b> It is at the bottom left of the keyboard.<br><b>Mac:</b> <span class="kbd">control ⌃</span>. Do not use <span class="kbd">command ⌘</span>.<br><b>Windows:</b> <span class="kbd">Ctrl</span>.`;   // the dot runs at real timing in every mode
 const CP_SECONDS = 30;                              // checkpoint length, equal across conditions
 const PRACTICE_CP_SECONDS = 20;
 const BASELINE_SECONDS = 30;
 const T0 = performance.now();
 const now = () => Math.round(performance.now() - T0);
 
-const SECTIONS = ["Consent", "Background", "Training", "Visit", "Questions", "Finish"];
+const SECTIONS = ["Consent", "Background", "Practice", "Main task", "Questions", "Finish"];
 
 const CONDITIONS = {
   G1: { label: "Concurrent self-documentation", documenter: "self", note_visible_during_visit: true, interactive: false },
@@ -317,14 +326,14 @@ const EXAMPLE_NOTE = "Chief complaint\n- Sore throat for 3 days.\n\nHistory of p
 
 const COMMON_INSTR = "You are the clinician in this visit. Watch the encounter closely. The visit is shown in three parts, with a short break between parts. <b>When the visit ends, you will give your diagnostic assessment.</b> <b>The video cannot be paused, rewound, or replayed.</b> You are responsible for the clinical note for this visit and will sign it at the end.";
 const INSTR = {
-  G1: "<b>You will document this visit yourself. Write the clinical note in the panel beside the video while you watch.</b> The visit has two short breaks, and you may keep writing during the breaks.",
+  G1: "<b>You will document this visit yourself. Write the clinical note in the panel beside the video while you watch.</b> The visit has two short breaks, and you can keep writing during the breaks.",
   G2: "<b>You will document this visit yourself after it ends. Do not take notes during the visit.</b> After the visit, you will write the full note from memory.",
   G3: "<b>An ambient AI scribe will listen to this visit and draft the clinical note. The draft is not shown during the visit.</b> After the visit, you will review the AI draft and sign it.",
   G4: "<b>An ambient AI scribe will listen to this visit and draft the clinical note. The draft appears in the panel beside the video and is updated as the conversation goes on.</b> After the visit, you will review the final draft and sign it.",
   G5: "<b>An ambient AI scribe will listen to this visit and draft the clinical note.</b> The draft appears in the panel beside the video and is updated as the conversation goes on. <b>At each break, confirm or correct each new item in the draft before the visit continues.</b> After the visit, you will review the final draft and sign it."
 };
 const PAUSE_MSG = {
-  G1: "You may keep writing your note.",
+  G1: "You can keep writing your note.",
   G2: "The next part will start automatically.",
   G3: "The AI scribe continues recording.",
   G4: "The draft note stays beside the video.",
@@ -398,7 +407,7 @@ const REC = {
   }
 };
 function recBar(id) {
-  return `<div class="recbar" id="${id}"><span class="recdot" aria-hidden="true"></span><span class="rectext">Checking the microphone</span><span class="mono rectime"></span></div>`;
+  return `<div class="recbar" id="${id}"><span class="recdot" aria-hidden="true"></span><span class="rectext">Starting the microphone</span><span class="meter" aria-hidden="true"><i></i></span><span class="mono rectime"></span></div>`;
 }
 function wireRecBar(bar, ok) {
   const txt = $(".rectext", bar), tm = $(".rectime", bar);
@@ -406,6 +415,8 @@ function wireRecBar(bar, ok) {
   bar.classList.add("on"); txt.textContent = "Recording. Keep thinking aloud.";
   const t0 = performance.now();
   let quiet = 0, reminding = false;
+  const mi = $(".meter i", bar);
+  const mv = setInterval(() => { const lv = REC.level(); if (mi && lv != null) mi.style.width = Math.min(100, Math.round(lv * 900)) + "%"; }, 100);
   const iv = setInterval(() => {
     tm.textContent = fmt((performance.now() - t0) * SPEED / 1000);
     const lv = REC.level();
@@ -416,7 +427,7 @@ function wireRecBar(bar, ok) {
       D.think_aloud.reminders = (D.think_aloud.reminders || 0) + 1; log("think_aloud_reminder", {});
     } else if (quiet === 0 && reminding) { reminding = false; txt.textContent = "Recording. Keep thinking aloud."; }
   }, 500);
-  return () => clearInterval(iv);
+  return () => { clearInterval(iv); clearInterval(mv); if (mi) mi.style.width = "0"; bar.classList.remove("on"); };
 }
 
 /* ---------- helpers ---------- */
@@ -485,7 +496,7 @@ const DRT = {
     if (!this.phase || !this.dot) return;
     this.dot.classList.add("on");
     this.pending = { phase: this.phase, segment: this.seg, trial: ++this.n, onset_ms: now(), _on: performance.now() };
-    this.t2 = setTimeout(() => this.dot && this.dot.classList.remove("on"), 1000);
+    this.t2 = setTimeout(() => this.dot && this.dot.classList.remove("on"), 2500);   // shown until a response, at most 2.5 s (the response window)
     this.t3 = setTimeout(() => this.resolve(null, null, "miss"), 2500);
   },
   resolve(rt, target, outcome) {
@@ -540,14 +551,14 @@ let downloads = null;
 /* ======================================================================
    FLOW
    ====================================================================== */
-const FLOW = [sConsent, sDevice, sPre, sAttitudes, sIntro, sThinkAloud, sDrtIntro, sBaselineWatch, sBaselineType, sAssign, sPracticeIntro, sPractice, sCaseIntro, sVisit, sDiagnosis, sRecall, sSummary, sLoad, sChecks, sEnd, sUpload, sDebrief];
+const FLOW = [sConsent, sWelcome, sDevice, sPre, sAttitudes, sPracticeStart, sIntro, sThinkAloud, sDrtIntro, sBaselineWatch, sBaselineType, sAssign, sPracticeIntro, sPractice, sCaseIntro, sVisit, sDiagnosis, sRecall, sSummary, sLoad, sChecks, sEnd, sUpload, sDebrief];
 let step = -1;
 function next() { step++; FLOW[step](); }
 
 /* Group assignment: balanced across the five groups by the backend */
 async function sAssign() {
-  screen("assignment", "Training");
-  app.append(el(`<div class="col"><div class="card"><h3>One moment</h3><h1>Preparing your visit</h1><p class="lede">This takes a few seconds.</p></div></div>`));
+  screen("assignment", "Practice");
+  app.append(el(`<div class="col"><div class="card"><h1>Loading the next part</h1><p class="lede">This takes a few seconds.</p></div></div>`));
   const keys = Object.keys(CONDITIONS);
   let g = null, method = null;
   const forced = (QS.get("g") || "").toUpperCase();
@@ -573,7 +584,6 @@ function sConsent() {
   const n = el(`<div class="col">
     ${TEST ? `<p class="notice">Test mode. This session is not counted in group balancing.</p>` : ""}
     <div class="card">
-      <h3>Information and consent</h3>
       <h1>Diagnosing from a recorded patient visit</h1>
       <p>Researchers at the Fox School of Business, Temple University, are studying how clinicians gather and use information during patient visits. You will watch one simulated primary care visit, give your diagnostic assessment, and answer questions about the visit. <b>The study takes about 30 minutes. Please use a laptop or desktop computer with a microphone, in a quiet place.</b></p>
       <p>We record your answers, what you type, when you click, how quickly you respond to an on-screen signal, and whether you leave this page. <b>While you work out your diagnosis, we audio-record you thinking aloud.</b> The microphone is used only during that step and a short practice. We do not record video of you. Your responses and audio are stored without your name in a secure account managed by the research team and are used only for this research.</p>
@@ -594,7 +604,6 @@ function sConsent() {
 function sPre() {
   screen("pre_survey", "Background");
   const n = el(`<div class="col"><div class="card">
-    <h3>About you</h3>
     <h1>Your clinical background</h1>
     <div class="field"><label for="role">Current role</label>
       <select id="role"><option value="">Select</option><option>Medical student, year 3</option><option>Medical student, year 4</option><option>Resident</option><option>Fellow</option><option>Attending physician</option><option>Nurse practitioner or physician assistant</option><option>Other</option></select></div>
@@ -605,13 +614,11 @@ function sPre() {
     <div class="field"><label for="age">What is your age? <span class="hint">(in years)</span></label>
       <input type="number" id="age" min="18" max="99" step="1" inputmode="numeric"></div>
     <div class="field"><label for="gender">What is your gender?</label>
-      <select id="gender"><option value="">Select</option><option>Woman</option><option>Man</option><option>Non-binary</option><option>Prefer to self-describe</option><option>Prefer not to say</option></select>
-      <input type="text" id="gender_self" aria-label="Your gender" placeholder="Please describe" hidden></div>
+      <select id="gender"><option value="">Select</option><option>Female</option><option>Male</option><option>Other</option><option>Prefer not to say</option></select></div>
     ${likertHTML("scribe_use", "How often do you use an ambient AI scribe in your clinical work?", FREQUENCY)}
     <div class="actions"><button class="btn" id="go">Continue</button></div>
   </div></div>`);
   app.append(n);
-  $("#gender").onchange = () => { const o = $("#gender").value === "Prefer to self-describe"; $("#gender_self").hidden = !o; if (o) $("#gender_self").focus(); };
   $("#go").onclick = () => {
     const c = $(".card", n);
     const v = {
@@ -624,7 +631,6 @@ function sPre() {
     const age = Number(v.age);
     if (!Number.isInteger(age) || age < 18 || age > 99) return setErr(c, "Please enter your age as a whole number between 18 and 99.");
     ["years_clinical", "age", "scribe_use_1to7"].forEach(k => v[k] = Number(v[k]));
-    v.gender_self_described = v.gender === "Prefer to self-describe" ? $("#gender_self").value.trim() : "";
     D.pre = v; next();
   };
 }
@@ -633,8 +639,7 @@ function sPre() {
 function sAttitudes() {
   screen("attitudes", "Background");
   const n = el(`<div class="col"><div class="card">
-    <h3>About you</h3>
-    <h1>Your views on technology</h1>
+    <h1>Your views on AI and new technology</h1>
     <p class="lede"><b>Please rate from Strongly disagree to Strongly agree.</b></p>
     ${likertHTML("ai1", "I believe that AI will improve my life.")}
     ${likertHTML("ai2", "I believe that AI will improve my work.")}
@@ -661,9 +666,46 @@ function sAttitudes() {
   };
 }
 
+/* 3a. Start of the practice section */
+function sPracticeStart() {
+  screen("practice_start", "Practice");
+  const n = el(`<div class="col"><div class="card">
+    <h3>Practice</h3>
+    <h1>Introduction and practice</h1>
+    <p>Next, you will go through a few short introductions and practice tasks. They prepare you for the main task.</p>
+    <ol class="olist">
+      <li>An introduction to ambient AI scribes, with a short check of your understanding.</li>
+      <li>Practice thinking aloud.</li>
+      <li>Practice a response task with a white dot.</li>
+      <li>A short practice video.</li>
+    </ol>
+    <div class="actions"><button class="btn" id="go">Start</button></div>
+  </div></div>`);
+  app.append(n);
+  $("#go").onclick = next;
+}
+
+/* 2a. Welcome */
+function sWelcome() {
+  screen("welcome", "Consent");
+  const n = el(`<div class="col"><div class="card">
+    <h1>Thank you for taking part</h1>
+    <p>Here is what you will do:</p>
+    <ol class="olist">
+      <li>Answer a few questions about your background.</li>
+      <li>Learn and practice some tasks.</li>
+      <li>Do the main experiment.</li>
+    </ol>
+    <p class="box"><b>Some tasks in this study may seem unrelated to diagnosing the patient. This is normal and expected.</b> Each task is part of the study, so please complete every task as instructed and do your best on each one.</p>
+    <div class="actions"><button class="btn" id="go">Continue</button></div>
+  </div></div>`);
+  app.append(n);
+  $("#go").onclick = next;
+}
+
 /* 3. Device check */
 function sDevice() {
-  screen("device_check", "Training");
+  screen("device_check", "Background");
   const w = window.innerWidth, h = window.innerHeight;
   D.device = { viewport_w: w, viewport_h: h, user_agent: navigator.userAgent, touch: matchMedia("(pointer: coarse)").matches };
   D.device.media_recorder = !!(navigator.mediaDevices && window.MediaRecorder);
@@ -671,7 +713,6 @@ function sDevice() {
   const ok = w >= 900 && !D.device.touch;
   const media = D.device.media_recorder && D.device.video_mp4;
   const n = el(`<div class="col"><div class="card">
-    <h3>Before you start</h3>
     <h1>Set up your screen</h1>
     <p>This study works best on a laptop or desktop computer with a mouse or trackpad. <b>Please turn your sound on, close other tabs and silence notifications.</b> The patient visit is a video with audio. Full screen keeps distractions out.</p>
     ${ok && media ? "" : `<p class="err">${!ok ? "This screen looks like a phone or tablet. Please open this link on a laptop or desktop computer." : "This browser cannot play the study video or record audio. Please open this link in a current version of Chrome, Edge or Firefox."}</p>`}
@@ -688,17 +729,17 @@ function sDevice() {
 
 /* 4. Ambient AI introduction + comprehension check */
 function sIntro() {
-  screen("ai_intro_comprehension", "Training");
+  screen("ai_intro_comprehension", "Practice");
   const n = el(`<div class="col">
     <div class="card">
-      <h3>Background</h3>
+      <h3>Practice</h3>
       <h1>What an ambient AI scribe does</h1>
       <p>An ambient AI scribe <b>listens to the conversation between a clinician and a patient and drafts the clinical note.</b> It picks out the relevant information and organizes it into note sections such as the history of present illness, medications, and allergies.</p>
       <p>In this study, <b>the scribe drafts the history sections only. It does not suggest a diagnosis or a treatment plan.</b> The clinician reviews the draft, corrects it if needed, and signs it.</p>
       <div class="example"><div class="eh">Example draft from a different patient</div><div class="doc">${esc(EXAMPLE_NOTE)}</div></div>
     </div>
     <div class="card" id="cc">
-      <h3>Check your understanding</h3>
+      <h2>Check your understanding</h2>
       <div class="field"><span class="qtext">1. What does the ambient AI scribe do during a visit?</span>
         ${optsHTML("q1", ["Suggests a diagnosis to the clinician", "Listens to the conversation and drafts a clinical note", "Answers the patient's questions"])}</div>
       <div class="field"><span class="qtext">2. Does the AI scribe in this study include a diagnosis in the note?</span>
@@ -722,54 +763,136 @@ function sIntro() {
 
 /* 4b. Think-aloud training + microphone check */
 function sThinkAloud() {
-  screen("think_aloud_training", "Training");
+  screen("think_aloud_training", "Practice");
+  const MIN_SEC = 10;
   const n = el(`<div class="col"><div class="card">
-    <h3>Thinking aloud</h3>
+<h3>Practice</h3>
     <h1>Say what you are thinking</h1>
-    <p>After the visit, you will work out your diagnosis while thinking aloud. <b>Say everything that goes through your mind, as it comes, even if it seems unimportant or incomplete.</b> You do not need to explain or justify your thoughts to us. <b>Just keep talking.</b> If you go quiet, the screen will remind you to keep talking.</p>
-    <p>Let's practice once. Click Start practice, then think aloud while you answer this question:</p>
-    <p class="doc">How many windows are there in the place where you live?</p>
-    ${recBar("tabar")}
-    <div class="actions"><button class="btn ghost" id="tastart">Start practice</button><button class="btn" id="go" disabled>Continue</button></div>
+    <p><b>This is a short practice of thinking aloud.</b> After the main video, you will work out your diagnosis while thinking aloud. <b>Say everything that goes through your mind, as it comes, even if it seems unimportant or incomplete.</b> You do not need to explain or justify your thoughts to us. <b>Just keep talking.</b> If you go quiet, the screen will remind you to keep talking.</p>
+    <div class="stepcard" id="s1">
+      <p><b>Step 1 of 2. Record a short practice.</b> Click <b>Start recording</b>, then think aloud while you answer the question below. Talk for at least ${MIN_SEC} seconds, then click <b>Stop recording</b>.</p>
+      <p class="doc">How many windows are there in the place where you live?</p>
+      <div id="tabarwrap" hidden>${recBar("tabar")}</div>
+      <p class="err" id="micerr" hidden></p>
+      <div class="actions" style="justify-content:flex-start"><button class="btn" id="rec">Start recording</button></div>
+    </div>
+    <div class="stepcard" id="s2" aria-disabled="true">
+      <p><b>Step 2 of 2. Listen to your recording.</b> Play it to check that your voice was recorded clearly.</p>
+      <audio id="pb" controls preload="auto" style="width:100%" hidden></audio>
+      <div class="field" id="heardq" hidden><span class="qtext">Could you hear your voice clearly?</span>${optsHTML("heard", ["Yes", "No"])}</div>
+      <p id="heardno" hidden><b>Please move closer to the microphone or check your microphone settings, then click Record again.</b></p>
+      <div class="actions" style="justify-content:flex-start" id="againrow" hidden><button class="btn ghost" id="again">Record again</button></div>
+    </div>
+    <div class="actions"><button class="btn" id="go" disabled>Continue</button></div>
   </div></div>`);
   app.append(n);
-  let stopTimer = () => {};
-  let fails = 0;
-  $("#tastart").onclick = async () => {
-    $("#tastart").disabled = true;
+  const c = $(".card", n), recBtn = $("#rec", n), pb = $("#pb", n);
+  const mc = D.think_aloud.mic_check = { recordings: 0, played_back: false, answers: [], heard: null };
+  let stopTimer = () => {}, fails = 0, recording = false, minIv = 0, url = null;
+  const canContinue = () => { $("#go").disabled = !(mc.heard === "yes" || mc.answers.filter(a => a === "No").length >= 2 || (fails >= 2 && !D.think_aloud.recording_available)); };
+
+  async function startRec() {
+    recBtn.disabled = true;
     const ok = await REC.start("practice");
     D.think_aloud.recording_available = ok;
     if (!ok) {
-      fails++;
-      D.think_aloud.mic_failures = fails;
-      const bar = $("#tabar"); bar.classList.add("off");
-      $(".rectext", bar).textContent = "We could not use your microphone. Click the microphone or lock icon in the address bar, allow the microphone for this page, then click Try again.";
-      $("#tastart").disabled = false; $("#tastart").textContent = "Try again";
+      fails++; D.think_aloud.mic_failures = fails;
+      const e = $("#micerr", n); e.hidden = false;
+      e.textContent = "We could not use your microphone. Click the microphone or lock icon in the address bar, allow the microphone for this page, then click Try again.";
+      recBtn.disabled = false; recBtn.textContent = "Try again";
       if (fails >= 2) { $("#go").disabled = false; $("#go").textContent = "Continue without recording"; }
       return;
     }
-    stopTimer = wireRecBar($("#tabar"), ok);
-    setTimeout(() => { $("#go").disabled = false; $("#go").textContent = "Continue"; $("#tastart").textContent = "Practice running"; }, 20000 / SPEED);
-  };
-  $("#go").onclick = async () => {
+    $("#micerr", n).hidden = true;
+    $("#tabarwrap", n).hidden = false;
+    stopTimer = wireRecBar($("#tabar", n), ok);
+    recording = true; mc.recordings++;
+    const t0 = performance.now();
+    recBtn.textContent = `Stop recording (available in 0:${String(MIN_SEC).padStart(2, "0")})`;
+    minIv = setInterval(() => {
+      const left = MIN_SEC - (performance.now() - t0) * SPEED / 1000;
+      if (left > 0) { recBtn.textContent = `Stop recording (available in ${fmt(left)})`; return; }
+      clearInterval(minIv); recBtn.textContent = "Stop recording"; recBtn.disabled = false;
+    }, 250);
+  }
+  async function stopRec() {
+    recBtn.disabled = true; recording = false;
     stopTimer();
     D.think_aloud.practice = await REC.stop();
+    $(".rectext", $("#tabar", n)).textContent = "Recording finished";
+    recBtn.textContent = "Recorded"; 
+    $("#s2", n).setAttribute("aria-disabled", "false");
+    if (url) URL.revokeObjectURL(url);
+    url = URL.createObjectURL(REC.blobs.practice); pb.src = url; pb.hidden = false;
+    $("#heardq", n).hidden = false; $("#heardno", n).hidden = true; $("#againrow", n).hidden = true;
+    $$("input[name=heard]", n).forEach(r => { r.checked = false; });
+    pb.focus();
+  }
+  recBtn.onclick = () => recording ? stopRec() : startRec();
+  pb.addEventListener("play", () => { mc.played_back = true; log("think_aloud_playback", {}); });
+  $$("input[name=heard]", n).forEach(r => r.onchange = () => {
+    if (!mc.played_back) { r.checked = false; return setErr(c, "Please play your recording first."); }
+    const e = $(".err:not(#micerr)", c); if (e) e.remove();
+    mc.answers.push(r.value);
+    if (r.value === "Yes") { mc.heard = "yes"; $("#heardno", n).hidden = true; $("#againrow", n).hidden = true; }
+    else { mc.heard = "no"; $("#heardno", n).hidden = false; $("#againrow", n).hidden = false; }
+    canContinue();
+  });
+  $("#again", n).onclick = () => {
+    pb.pause(); pb.hidden = true; mc.played_back = false;
+    $("#heardq", n).hidden = true; $("#heardno", n).hidden = true; $("#againrow", n).hidden = true;
+    $("#s2", n).setAttribute("aria-disabled", "true");
+    recBtn.textContent = "Start recording"; recBtn.disabled = false;
+  };
+  $("#go").onclick = async () => {
+    if (recording) { stopTimer(); D.think_aloud.practice = await REC.stop(); }
+    clearInterval(minIv); pb.pause();
     next();
   };
 }
 
 /* 5. DRT introduction */
 function sDrtIntro() {
-  screen("drt_intro", "Training");
+  screen("drt_intro", "Practice");
   const n = el(`<div class="col"><div class="card">
-    <h3>Response task</h3>
-    <h1>Press the ${KEY} when the dot appears</h1>
-    <p>Throughout the visit, a small white dot will appear now and then at the top of the video. <b>Press the ${KEY} (${KEY_WHERE}) as quickly as you can each time you see it. Keep doing this the whole time, including while you read or type.</b></p>
-    <p>You will practice this twice, for 30 seconds each. First you will only watch the screen. Then you will copy a short passage while responding to the dot.</p>
-    <div class="actions"><button class="btn" id="go">Start practice 1</button></div>
+<h3>Practice</h3>
+    <h1>Respond to the white dot</h1>
+    <p>While you watch the videos in this study, you will also do a simple response task.</p>
+    <ol class="olist">
+      <li>A <b>white dot</b> appears now and then at the <b>top center</b> of the screen. It disappears when you press the key.</li>
+      <li>Each time you see it, <b>press the ${KEY} once</b>, as quickly as you can. Use the keyboard. Do not click the dot.</li>
+      <li><b>Keep doing this the whole time</b>, while you watch, read, or type. The dot appears every few seconds, at random times.</li>
+      <li>Do not press the key when there is no dot.</li>
+    </ol>
+    <p class="box">${KEY_BOX}</p>
+    <div class="stage" style="aspect-ratio:21/9" id="demo"><div class="drt-dot" id="ddot"></div><div class="fix">+</div><div class="caption" style="min-height:0;justify-content:space-between"><span id="dmsg">Try it: click Start, then press the ${KEY} when the dot appears.</span><span class="mono" id="dcount"></span></div></div>
+    <div class="actions" style="justify-content:flex-start"><button class="btn ghost" id="try">Start</button></div>
+    <p>After this, you will practice twice, for 30 seconds each. First you will only watch the screen. Then you will type a short passage while responding to the dot.</p>
+    <div class="actions"><button class="btn" id="go" disabled>Start practice 1</button></div>
   </div></div>`);
   app.append(n);
-  $("#go").onclick = next;
+  const NEED = 3, dot = $("#ddot", n), msg = $("#dmsg", n), cnt = $("#dcount", n);
+  const tr = D.drt_try = { correct: 0, wrong_key: 0, early: 0, misses: 0 };
+  let waiting = false, armed = false, tShow = 0, tMiss = 0;
+  const say = t => { msg.textContent = t; };
+  function schedule() {
+    armed = true; waiting = false;
+    tShow = setTimeout(() => { dot.classList.add("on"); waiting = true; tMiss = setTimeout(() => { if (!waiting) return; waiting = false; dot.classList.remove("on"); tr.misses++; say(`The dot went away. Press the ${KEY} as soon as you see it.`); schedule(); }, 3000); }, (1200 + Math.random() * 1500) / SPEED);
+  }
+  function onKey(e) {
+    if (!armed || e.repeat) return;
+    if (e.key === "Control") {
+      if (!waiting) { tr.early++; say("Wait for the dot, then press the key."); return; }
+      waiting = false; clearTimeout(tMiss); dot.classList.remove("on"); tr.correct++;
+      cnt.textContent = `${tr.correct} of ${NEED}`;
+      if (tr.correct >= NEED) { armed = false; say("Well done. You are ready for the practice."); $("#go").disabled = false; $("#try").hidden = true; document.removeEventListener("keydown", onKey, true); return; }
+      say("Correct. Wait for the next dot."); schedule();
+    } else if (e.key === "Meta") { tr.wrong_key++; say(IS_MAC ? "That was command ⌘. Please press control ⌃ instead." : "That was the Windows key. Please press Ctrl instead."); }
+    else if (waiting) { tr.wrong_key++; say(`That key is not used. Please press the ${KEY}.`); }
+  }
+  document.addEventListener("keydown", onKey, true);
+  $("#try").onclick = () => { $("#try").disabled = true; $("#try").textContent = "Running"; cnt.textContent = `0 of ${NEED}`; say(`Press the ${KEY} when the dot appears.`); schedule(); };
+  $("#go").onclick = () => { clearTimeout(tShow); clearTimeout(tMiss); document.removeEventListener("keydown", onKey, true); next(); };
 }
 
 function miniStage(label) {
@@ -788,10 +911,12 @@ function countdown(seconds, onTick, onDone) {
 
 /* 6. Baseline A: DRT only */
 function sBaselineWatch() {
-  screen("baseline_watch", "Training");
+  screen("baseline_watch", "Practice");
   const n = el(`<div class="col"><div class="card">
-    <h3>Practice 1 of 2</h3>
-    <h2>Watch the screen and press the ${KEY} when the dot appears</h2>
+<h3>Practice</h3>
+    <h2>Watch the screen. Press the ${KEY} each time the white dot appears.</h2>
+    <p class="box">${KEY_BOX}</p>
+    <p class="hint">This practice runs for 30 seconds. Continue becomes available when it ends.</p>
     ${miniStage("Practice 1")}
     <div class="actions"><button class="btn" id="go" disabled>Continue</button></div>
   </div></div>`);
@@ -805,11 +930,12 @@ function sBaselineWatch() {
 
 /* 7. Baseline B: DRT while copy-typing */
 function sBaselineType() {
-  screen("baseline_typing", "Training");
+  screen("baseline_typing", "Practice");
   const passage = "The library opens at nine on weekdays and at ten on Saturdays. Visitors can borrow up to six books at a time and return them at any branch in the city. Study rooms can be reserved online up to one week in advance.";
   const n = el(`<div class="col"><div class="card">
-    <h3>Practice 2 of 2</h3>
-    <h2>Copy the passage while pressing the ${KEY} when the dot appears</h2>
+<h3>Practice</h3>
+    <h2>Type the passage below. Each time the white dot appears, press the ${KEY}, then keep typing.</h2>
+    <p class="hint">This practice runs for 30 seconds. You do not need to finish the passage.</p>
     ${miniStage("Practice 2")}
     <p class="doc">${esc(passage)}</p>
     <div class="field"><label for="copy">Type the passage here</label><textarea id="copy" spellcheck="false" autocomplete="off"></textarea></div>
@@ -829,14 +955,15 @@ function sBaselineType() {
 
 /* 9. Practice intro */
 function sPracticeIntro() {
-  screen("practice_intro", "Training");
+  screen("practice_intro", "Practice");
   const g = D.condition;
   const n = el(`<div class="col"><div class="card">
-    <h3>Practice visit</h3>
-    <h1>How documentation works in your visit</h1>
+    <h3>Practice</h3>
+    <h1>Practice video</h1>
     <p>${INSTR[g]}</p>
-    <p>First, a one-minute practice visit lets you try the screen. <b>Keep pressing the ${KEY} when the dot appears.</b> Nothing from the practice visit is used in the study.</p>
-    <div class="actions"><button class="btn" id="go">Start practice visit</button></div>
+    <p>First, a short practice video lets you get familiar with the interface. Nothing from the practice video is used in the study.</p>
+    <p class="box"><b>Remember the white dot:</b> During the video, press the ${KEY} every time the white dot appears at the top of the video.</p>
+    <div class="actions"><button class="btn" id="go">Start practice video</button></div>
   </div></div>`);
   app.append(n);
   $("#go").onclick = next;
@@ -844,20 +971,21 @@ function sPracticeIntro() {
 
 /* 10. Practice visit */
 function sPractice() {
-  screen("practice_visit", "Training");
+  screen("practice_visit", "Practice");
   runVisit(PRACTICE, "practice", PRACTICE_CP_SECONDS, D.practice, () => {
-    screen("practice_done", "Training");
+    screen("practice_done", "Practice");
     const n = el(`<div class="col"><div class="card">
-      <h3>Practice complete</h3>
+      <h3>Practice</h3>
+      ${(() => { const t = D.drt.filter(x => x.phase === "practice" && x.outcome !== "truncated"); const h = t.filter(x => x.outcome === "hit").length; return t.length ? `<p class="box">White dot: you responded to <b>${h} of ${t.length}</b>.${h < t.length ? ` <b>In the main video, press the ${KEY} every time the dot appears.</b>` : " Well done."}</p>` : ""; })()}
       <h1>Could you hear the patient clearly?</h1>
-      <p>The study visit has no captions, so <b>you need to hear the conversation clearly.</b></p>
+      <p>The main video has no captions, so <b>you need to hear the conversation clearly.</b></p>
       <div class="field">${optsHTML("hear", ["Yes", "No"])}</div>
       <div id="fix" hidden>
         <p><b>Please check that your sound is on and your volume is up, or try headphones.</b> Then play the sample and answer again.</p>
         <video id="snd" playsinline preload="auto" style="width:100%;max-width:420px;border-radius:6px;background:#000;display:block"></video>
         <div class="actions" style="justify-content:flex-start"><button class="btn ghost" id="play">Play sample</button></div>
       </div>
-      <p>The study visit takes about three minutes and is shown in three parts, with a short break between parts. It works the same way as the practice visit.</p>
+      <p>The main video takes about three minutes and is shown in three parts, with a short break between parts. It works the same way as the practice video.</p>
       <div class="actions"><button class="btn" id="go">Continue</button></div>
     </div></div>`);
     app.append(n);
@@ -880,15 +1008,14 @@ function sPractice() {
 
 /* 11. Case instructions */
 function sCaseIntro() {
-  screen("case_instructions", "Visit");
+  screen("case_instructions", "Main task");
   const g = D.condition;
   const n = el(`<div class="col"><div class="card">
-    <h3>Study visit</h3>
     <h1>${esc(CASE.intro)}</h1>
     <p>${COMMON_INSTR}</p>
     <p>${INSTR[g]}</p>
     <p><b>Keep pressing the ${KEY} whenever the dot appears.</b></p>
-    <div class="actions"><button class="btn" id="go">Go to the visit</button></div>
+    <div class="actions"><button class="btn" id="go">Go to the main video</button></div>
   </div></div>`);
   app.append(n);
   $("#go").onclick = next;
@@ -896,7 +1023,7 @@ function sCaseIntro() {
 
 /* 12. Study visit */
 function sVisit() {
-  screen("study_visit", "Visit");
+  screen("study_visit", "Main task");
   runVisit(CASE, "visit", CP_SECONDS, D.case, next);
 }
 
@@ -928,6 +1055,7 @@ function runVisit(cd, phase, cpSec, rec, onDone) {
       </div>
       <div class="track" aria-hidden="true"><div class="fill" id="fill"></div>${ticks}</div>
       <div class="under"><span id="vstat">Ready</span><span class="mono" id="vtime">0:00 / ${fmt(total)}</span></div>
+      ${phase === "practice" ? `<p class="box" style="margin-top:10px"><b>Press the ${KEY} every time the white dot appears at the top of the video.</b></p>` : ""}
     </div>
     <aside class="panel" id="panel" aria-label="Clinical note"></aside>
   </div></div>`);
@@ -1071,7 +1199,7 @@ function runVisit(cd, phase, cpSec, rec, onDone) {
         if (err && err.name !== "NotAllowedError") return videoExit(String(err));
         vlog("play_blocked", { error: String(err) }); blocked = true;
         ov.hidden = false;
-        ov.innerHTML = `<div class="big">Part ${k + 1} of ${cd.segments.length}</div><div class="sub">Click to start this part of the visit.</div><button class="btn" id="ovplay">Play</button>`;
+        ov.innerHTML = `<div class="big">Part ${k + 1} of ${cd.segments.length}</div><div class="sub">Click to start this part of the video.</div><button class="btn" id="ovplay">Play</button>`;
         $("#ovplay", ov).onclick = () => { ov.hidden = true; blocked = false; start(); };
       });
     };
@@ -1200,7 +1328,7 @@ function runVisit(cd, phase, cpSec, rec, onDone) {
 
   function finishVisit() {
     clearInterval(timeIv);
-    $("#vstat", n).textContent = "Visit ended";
+    $("#vstat", n).textContent = "Video ended";
     $("#vtime", n).textContent = `${fmt(total)} / ${fmt(total)}`;
     $("#spkD", n).classList.remove("on"); $("#spkP", n).classList.remove("on");
     if (g === "G1") {
@@ -1216,12 +1344,12 @@ function runVisit(cd, phase, cpSec, rec, onDone) {
     rec.ai_items_state = aiItems.map(i => ({ id: i.id, text: i.text, original: i.original || null, status: i.status, added: !!i.added }));
     rec.visit_end_ms = now();
     ov.hidden = false;
-    ov.innerHTML = `<div class="big">The visit has ended</div><div class="sub">${phase === "practice" ? "That was the practice visit." : "Next, you will give your diagnostic assessment. The note will not be available on the next pages."}</div><button class="btn" id="ovgo">Continue</button>`;
+    ov.innerHTML = `<div class="big">The video has ended</div><div class="sub">${phase === "practice" ? "That was the practice video." : "Next, you will give your diagnostic assessment. The note will not be available on the next pages."}</div><button class="btn" id="ovgo">Continue</button>`;
     $("#ovgo", ov).onclick = () => { panel.innerHTML = ""; onDone(); };
   }
 
   /* start overlay */
-  ov.innerHTML = `<div class="big">${phase === "practice" ? "Practice visit" : "Study visit"}</div><div class="sub">Click Start when you are ready. <b>The video plays from start to end and cannot be paused or replayed.</b> Remember to press the ${KEY} whenever the dot appears.</div><button class="btn" id="ovgo">Start</button>`;
+  ov.innerHTML = `<div class="big">${phase === "practice" ? "Practice video" : "Main video"}</div><div class="sub">Click Start when you are ready. <b>The video plays from start to end and cannot be paused or replayed.</b> Remember to press the ${KEY} whenever the dot appears.</div><button class="btn" id="ovgo">Start</button>`;
   $("#ovgo", ov).onclick = () => {
     ov.hidden = true; rec.visit_start_ms = now(); log("visit_start", { phase });
     if (selfTA) selfTA.focus();
@@ -1242,7 +1370,6 @@ function sDiagnosis() {
       ${likertHTML(`conf${i}`, "Please rate your confidence from Not at all confident to Completely confident.", CONFIDENCE)}
     </div>`;
   const n = el(`<div class="col"><div class="card">
-    <h3>Your assessment</h3>
     <h1>What is going on with this patient?</h1>
     <p class="lede"><b>Think aloud the whole time you work on this page.</b> Say everything that goes through your mind as you work out what is going on. Then list up to three diagnoses, from most to least likely. <b>You cannot return to this page after you submit.</b></p>
     ${recBar("dxbar")}
@@ -1282,7 +1409,6 @@ function sRecall() {
   screen("free_recall", "Questions");
   const MIN = 120, LIMIT = 180;
   const n = el(`<div class="col"><div class="card">
-    <h3>What you remember</h3>
     <h1>List what you remember</h1>
     <p>List everything you remember about this patient from the visit: what the patient said, what you were told, and any findings. <b>Write one item per line.</b> Include details even if they seem unimportant. <b>Do not explain or interpret the information. Just list it.</b></p>
     <div class="field"><label for="recall">Your list</label>
@@ -1313,7 +1439,6 @@ function sSummary() {
   screen("problem_representation", "Questions");
   const MAXW = 60;
   const n = el(`<div class="col"><div class="card">
-    <h3>Case summary</h3>
     <h1>Summarize the case</h1>
     <p>Summarize this patient's case <b>in one to three sentences</b>, as you would present it to a colleague. Bring together the findings you consider most important. <b>Do not name a diagnosis.</b></p>
     <div class="field"><label for="sum">Your summary</label>
@@ -1340,7 +1465,6 @@ function sSummary() {
 function sLoad() {
   screen("post_visit_load", "Questions");
   const n = el(`<div class="col"><div class="card">
-    <h3>About the visit</h3>
     <h1>How the visit felt</h1>
     <p class="lede"><b>Please rate from Very low to Very high.</b></p>
     ${likertHTML("tlx_mental", "How mentally demanding was the visit?", LOWHIGH)}
@@ -1370,7 +1494,6 @@ function sLoad() {
 function sChecks() {
   screen("post_visit_checks", "Questions");
   const n = el(`<div class="col"><div class="card">
-    <h3>About the visit</h3>
     <h1>How the visit was set up</h1>
     <div class="field"><span class="qtext">For this visit, who was responsible for drafting the clinical note?</span>
       ${optsHTML("mc1", ["I wrote it during the visit", "I will write it after the visit", "An AI scribe drafted it", "Not sure"])}</div>
@@ -1416,7 +1539,6 @@ function sNote() {
   else if (g === "G2") { title = "Write your note"; lede = "Write the clinical note for this visit from memory, then sign it."; placeholder = NOTE_TEMPLATE; }
   else { title = "Review the AI draft"; lede = "Here is the final draft from the AI scribe. Correct anything that is wrong or missing, then sign it."; prefill = buildAINote(); }
   const n = el(`<div class="col"><div class="card">
-    <h3>Clinical note</h3>
     <h1>${title}</h1>
     <p class="lede">${lede}</p>
     <div class="field"><label for="fn">Note</label><textarea id="fn" spellcheck="false" style="min-height:420px;font-family:var(--mono);font-size:.84rem;line-height:1.55"></textarea></div>
@@ -1450,7 +1572,6 @@ function sNote() {
 function sEnd() {
   screen("end_questions", "Finish");
   const n = el(`<div class="col"><div class="card">
-    <h3>Last questions</h3>
     <h1>Almost done</h1>
     <div class="field"><span class="qtext">How did you complete this study?</span>
       ${optsHTML("serious", ["I took part seriously", "I did not pay full attention, so my answers should not be used"])}</div>
@@ -1476,7 +1597,7 @@ let uploaded = false;
 async function sUpload() {
   screen("upload", "Finish");
   if (cur) cur.end_ms = now();
-  const n = el(`<div class="col"><div class="card"><h3>Saving</h3><h1>Saving your responses</h1><p class="lede" id="upmsg">Please keep this page open. This can take up to a minute.</p><div class="actions"><button class="btn" id="go" hidden>Try again</button></div></div></div>`);
+  const n = el(`<div class="col"><div class="card"><h1>Saving your responses</h1><p class="lede" id="upmsg">Please keep this page open. This can take up to a minute.</p><div class="actions"><button class="btn" id="go" hidden>Try again</button></div></div></div>`);
   app.append(n);
   const audio = REC.blobs.diagnosis;
   const payload = {
@@ -1527,7 +1648,6 @@ function endStudyEarly() {
   sendPartial();
   screen("ended_video_failed", "Finish");
   app.append(el(`<div class="col"><div class="card">
-    <h3>Study ended</h3>
     <h1>The video could not be played</h1>
     <p>We are sorry. The visit video could not play in this browser, so the study cannot continue. <b>Please close this page.</b></p>
     <p>If you would like to try again, open the link in a current version of Chrome, Edge or Firefox on a laptop or desktop computer with a stable internet connection.${CONFIG.CONTACT_EMAIL ? ` Questions: ${esc(CONFIG.CONTACT_EMAIL)}.` : ""}</p>
@@ -1553,90 +1673,18 @@ function toCSV() {
 function sDebrief() {
   screen("debrief", "Finish");
   if (cur) cur.end_ms = now();
-  const g = D.condition;
-  const ds = drtSummary();
-  const cps = D.case.checkpoints.map(c => `${fmt(c.duration_ms / 1000)}`).join(", ");
-  let g5 = "";
-  if (g === "G5") {
-    const its = D.case.checkpoints.flatMap(c => c.items || []);
-    const seeded = its.filter(i => i.seeded);
-    g5 = `<tr><td>Seeded draft problems caught at pauses</td><td>${seeded.map(i => `${esc(i.id)}: ${i.status === "corrected" ? "corrected" : "not corrected"}`).join(", ")}</td></tr>
-          <tr><td>Items confirmed / corrected</td><td>${its.filter(i => i.status === "confirmed").length} / ${its.filter(i => i.status === "corrected").length}</td></tr>`;
-  }
-  const sc = D.case.final_note.seeded_checks;
-  const n = el(`<div class="col">
-    <div class="card">
-      <h3>Thank you</h3>
-      <h1>About this study</h1>
-      <p>This study examines how the way a visit is documented shapes clinicians' diagnostic reasoning. Participants were assigned to write the note during the visit, write it after the visit, or have an ambient AI scribe draft it. In some AI conditions, the draft was shown during the visit, and in one condition, clinicians confirmed or corrected the draft at each pause.</p>
-      <p>The AI scribe in this study was simulated. The draft notes were written in advance by the research team, and some contained deliberate errors so that we could study how clinicians review AI drafts. The patient and the visit were fictional. The instructions said you would write or review the clinical note at the end. That step was not part of the study, because we only needed your reasoning before any note was available.</p>
-      <p>Please do not discuss the study with colleagues who may take part. If you have questions, contact the research team${CONFIG.CONTACT_EMAIL ? ` at ${esc(CONFIG.CONTACT_EMAIL)}` : ""}.</p>
-    </div>
-    <div class="card">
-      <h3>Your gift card</h3>
-      <p>Your responses have been saved. Your completion code is <b class="mono">${esc(D.completion_code || D.participant_id)}</b>.</p>
-      ${CONFIG.GIFT_CARD_FORM_URL ? `<p>Enter this code in the gift card form. The form opens in a new tab and is not linked to your answers.</p><div class="actions"><a class="btn" href="${esc(CONFIG.GIFT_CARD_FORM_URL)}" target="_blank" rel="noopener">Open the gift card form</a></div>` : `<p>Please keep this code. The research team will contact you about your gift card.</p>`}
-      <p class="hint">You can close this page now.</p>
-    </div>
-    <div class="card" ${TEST ? "" : "hidden"}>
-      <h3>Session data for the research team</h3>
-      <div class="tablewrap"><table class="sum"><tbody>
-        <tr><td>Participant ID</td><td class="mono">${D.participant_id}</td></tr>
-        <tr><td>Condition</td><td>${g}: ${esc(D.condition_label)}</td></tr>
-        <tr><td>Reference diagnosis</td><td>${esc(CASE.reference_diagnosis)}</td></tr>
-        <tr><td>Leading diagnosis given</td><td>${esc((D.case.diagnosis.ranked[0] || {}).diagnosis || "")} (confidence ${(D.case.diagnosis.ranked[0] || {}).confidence_1to7} of 7)</td></tr>
-        <tr><td>Items recalled</td><td class="mono">${D.case.retention.n_items}</td></tr>
-        <tr><td>Case summary</td><td>${esc(D.case.integration.summary_statement)} <span class="hint">(${D.case.integration.words} words)</span></td></tr>
-        <tr><td>Think-aloud audio</td><td>${D.think_aloud.diagnosis ? `${fmt(D.think_aloud.diagnosis.duration_ms / 1000)} recorded, ${D.think_aloud.reminders || 0} reminders` : "Not recorded"}</td></tr>
-        <tr><td>Assignment</td><td>${esc(D.assignment_method || "")}</td></tr>
-        <tr><td>Pause durations</td><td class="mono">${cps}</td></tr>
-        ${g === "G1" ? `<tr><td>Keystrokes during the visit</td><td class="mono">${Object.entries(D.case.self_note.keystrokes).map(([k, v]) => `${k}: ${v}`).join(", ") || "0"}</td></tr>` : ""}
-        ${g5}
-        ${sc ? `<tr><td>Final note: oral contraceptive documented</td><td>${sc.oral_contraceptive_documented ? "Yes" : "No"}</td></tr><tr><td>Final note: left calf documented</td><td>${sc.left_calf_documented ? "Yes" : "No"}</td></tr>` : ""}
-        <tr><td>Times the page lost focus</td><td class="mono">${D.events.filter(e => e.type === "window_blur").length}</td></tr>
-      </tbody></table></div>
-      <h3>Response task</h3>
-      <div class="tablewrap"><table class="sum">
-        <thead><tr><th>Phase</th><th>Trials</th><th>Hit rate</th><th>Mean RT (ms)</th><th>False alarms</th></tr></thead>
-        <tbody>${ds.map(r => `<tr><td>${r.phase.replace("_", " ")}</td><td class="mono">${r.trials}</td><td class="mono">${r.hit_rate == null ? "" : Math.round(r.hit_rate * 100) + "%"}</td><td class="mono">${r.mean_rt_ms ?? ""}</td><td class="mono">${r.false_alarms}</td></tr>`).join("")}</tbody>
-      </table></div>
-      <div class="actions" id="dlrow">
-        <span class="hint" id="dlmsg" aria-live="polite"></span>
-        <button class="btn ghost" id="copy">Copy JSON</button>
-        <button class="btn ghost" id="csv">Save response task CSV</button>
-        ${REC.blobs.diagnosis ? '<button class="btn ghost" id="aud">Save think-aloud audio</button>' : ""}
-        <button class="btn" id="json">Save full data (JSON)</button>
-      </div>
-      <details><summary>Show full data record</summary><textarea id="raw" readonly style="min-height:320px;margin-top:10px;font-family:var(--mono);font-size:.78rem"></textarea></details>
-      <div class="actions"><button class="btn ghost" id="again">Start a new test session</button></div>
-    </div></div>`);
+  const code = D.completion_code || D.participant_id;
+  const n = el(`<div class="col"><div class="card">
+    <h1>Thank you for taking part</h1>
+    <p>Your responses have been saved.</p>
+    <p>Your gift card code is</p>
+    <p class="bigcode">${esc(code)}</p>
+    ${CONFIG.GIFT_CARD_FORM_URL ? `<p>Enter this code in the gift card form to receive your gift card. The form opens in a new tab and is not linked to your answers.</p><div class="actions" style="justify-content:flex-start"><a class="btn" href="${esc(CONFIG.GIFT_CARD_FORM_URL)}" target="_blank" rel="noopener">Open the gift card form</a></div>` : `<p>Please keep this code to receive your gift card.</p>`}
+    <p class="hint">You can close this page now.</p>
+    ${TEST ? `<textarea id="raw" hidden></textarea>` : ""}
+  </div></div>`);
   app.append(n);
-  const json = JSON.stringify(D, null, 2);
-  $("#raw").value = json;
-  const msg = t => $("#dlmsg").textContent = t;
-
-  async function save(filename, data) {
-    if (downloads) {
-      try { await downloads.save({ filename, data }); msg("Saved " + filename + "."); }
-      catch (e) { msg(e && e.code === "declined" ? "Save cancelled." : "Saving is not available here. Use Copy JSON instead."); }
-      return;
-    }
-    if (!window.claude) {
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(new Blob([data], { type: filename.endsWith(".csv") ? "text/csv" : "application/json" }));
-      a.download = filename; document.body.append(a); a.click(); a.remove();
-      msg("Saved " + filename + "."); return;
-    }
-    msg("Saving is not available here. Use Copy JSON instead.");
-  }
-  $("#json").onclick = () => save(`encounter-${D.participant_id}-${g}.json`, json);
-  $("#csv").onclick = () => save(`drt-${D.participant_id}-${g}.csv`, toCSV());
-  if ($("#aud")) $("#aud").onclick = () => save(`thinkaloud-${D.participant_id}-${g}.webm`, REC.blobs.diagnosis);
-  $("#copy").onclick = async () => {
-    try { await navigator.clipboard.writeText(json); msg("Copied the data record."); }
-    catch (_) { const d = $("details", n); d.open = true; const r = $("#raw"); r.focus(); r.select(); msg("Copy was blocked. The record is selected below, so press Ctrl+C or Cmd+C."); }
-  };
-  $("#again").onclick = () => { location.search = "?test=1"; };
+  if (TEST) $("#raw").value = JSON.stringify(D);
 }
 
 /* test shortcut: ?test=1&jump=practice starts at group assignment, ?test=1&jump=visit&g=G4 starts at the study visit */
