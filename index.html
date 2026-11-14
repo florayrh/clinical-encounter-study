@@ -102,8 +102,18 @@ input[type=range]{width:100%;accent-color:var(--ink)}
 .badge{z-index:2;position:absolute;top:12px;right:14px;font-size:.68rem;letter-spacing:.07em;text-transform:uppercase;display:flex;align-items:center;gap:6px}
 .badge i{width:8px;height:8px;border-radius:50%;background:var(--stage-ink);animation:blink 1.6s infinite}
 @keyframes blink{50%{opacity:.25}}
-.drt-dot{position:absolute;top:14px;left:50%;width:30px;height:30px;margin-left:-15px;border-radius:50%;background:#fff;border:4px solid #000;box-shadow:0 0 0 3px #fff;opacity:0;pointer-events:none;z-index:3}
+.stage{container-type:inline-size}
+.drt-dot{position:absolute;top:1.4cqi;left:1.4cqi;opacity:0;pointer-events:none;z-index:3}
 .drt-dot.on{opacity:1}
+.ntf{display:flex;align-items:center;gap:1.1cqi;width:max(176px,24.5cqi);padding:max(7px,.97cqi) max(9px,1.25cqi);border-radius:max(10px,1.4cqi);background:rgba(255,255,255,.95);border:1px solid rgba(0,0,0,.08);box-shadow:0 6px 20px rgba(0,0,0,.28);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#111;text-align:left;font-family:var(--sans);line-height:1.25}
+.ntf .ic{width:max(24px,3.35cqi);height:max(24px,3.35cqi);border-radius:max(6px,.85cqi);background:#111;display:grid;place-items:center;flex:none}
+.ntf .ic svg{width:50%;height:50%;fill:#fff}
+.ntf .tx{flex:1;min-width:0}
+.ntf .t1{display:flex;justify-content:space-between;align-items:baseline;gap:6px}
+.ntf .t1 b{font-size:max(10.5px,1.46cqi);font-weight:600;white-space:nowrap}
+.ntf .t1 span{font-size:max(8.5px,1.18cqi);opacity:.6}
+.ntf .t2{display:block;font-size:max(9px,1.25cqi);opacity:.7;margin-top:1px;white-space:nowrap}
+.ntf .k{display:inline-block;font-weight:600;font-size:.9em;letter-spacing:.02em;color:#111;background:#f3f3f3;border:1px solid #c9c9c9;border-bottom-width:2px;border-radius:4px;padding:1px .4em 0;margin:0 1px;vertical-align:1px;line-height:1.2}
 .overlay{position:absolute;inset:0;background:var(--overlay);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:24px;color:var(--stage-ink)}
 .overlay .big{font-family:var(--serif);font-size:clamp(1.05rem,2.2vw,1.45rem)}
 .overlay .sub{color:var(--stage-muted);max-width:44ch;font-size:.9rem}
@@ -165,6 +175,7 @@ h3,.panel-h .s,.note-sec h4,.steps li:not(.cur){color:var(--ink)}
 .caption{gap:16px}.caption .mono{white-space:nowrap;flex:none}
 .mbox{border:2px solid var(--ink);border-radius:var(--r);padding:16px 18px;display:flex;flex-direction:column;gap:8px}.mbox .mlabel{font-weight:600}.mbox ul{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:6px}
 .consent h2{margin-top:6px}table.meta{border-collapse:collapse;width:100%}table.meta td{padding:4px 0;vertical-align:top}table.meta td:first-child{font-weight:600;width:9em;padding-right:12px}
+table.matrix{width:100%;border-collapse:collapse;table-layout:fixed;min-width:560px}table.matrix th{font-weight:400;font-size:.9rem;padding:6px 2px;text-align:center;vertical-align:bottom;line-height:1.2}table.matrix td{text-align:center;border-top:1px solid var(--line);padding:9px 2px}table.matrix td.rl{text-align:left;font-weight:600;width:20%}table.matrix label{display:block;cursor:pointer;padding:4px 0}table.matrix input{accent-color:var(--ink);width:16px;height:16px}.tablewrap{overflow-x:auto}
 </style>
 
 </head>
@@ -185,14 +196,15 @@ h3,.panel-h .s,.note-sec h4,.steps li:not(.cur){color:var(--ink)}
    STUDY CONFIGURATION: fill these in before sending the link
    ============================================================ */
 const CONFIG = {
-  ENDPOINT: "https://script.google.com/macros/s/AKfycbzWAb3N5umDQ7WS7TUMLxSnTIve40dYqazpqk-gJ3erExmmRmmVOtnH-3bBSST5iEB-/exec",  // Google Apps Script web app URL
+  ENDPOINT: "https://script.google.com/macros/s/AKfycbzZZ33SFQAQlcjUUvBZY2Z7-oWBYGScB-ph6udPA0O4SE3uFVeDlZS4AshpANU0R1eeYQ/exec",  // Google Apps Script web app URL
   GIFT_CARD_FORM_URL: "",     // separate form for the gift card, not linked to responses
   CONTACT_NAME: "Ruihan Yang",
   CONTACT_EMAIL: "ruihan.yang0001@temple.edu",
   CONTACT_PHONE: "608-658-3038",
   INVESTIGATORS: "John D'Arcy, Sezgin Ayabakan, Ruihan Yang",
   IRB_PROTOCOL: "",           // Temple IRB protocol number, shown on the consent page
-  GIFT_CARD_AMOUNT: "",       // e.g. "$20", shown on the consent page
+  GIFT_CARD_AMOUNT: "$25",    // shown on the consent page and the final page
+  GIFT_CARD_TYPE: "Starbucks", // e.g. "Starbucks" or "Amazon"
   SHOW_CAPTIONS: false        // show the spoken text under the video
 };
 
@@ -202,7 +214,8 @@ const CONFIG = {
    ?test=1       test mode: not counted in group balancing, shows the data panel at the end
    ?test=1&g=G3  test mode with a fixed group
    ?test=1&fast=1  test mode with all timers 8x faster
-   ?test=1&endpoint=URL  test against another backend */
+   ?test=1&endpoint=URL  test against another backend
+   ?test=1&order=AB      test mode with a fixed case order (AB = pulmonary embolism first, BA = subarachnoid hemorrhage first) */
 const QS = new URLSearchParams(location.search);
 const TEST = QS.get("test") === "1";
 if (TEST && QS.get("endpoint")) CONFIG.ENDPOINT = QS.get("endpoint");
@@ -215,14 +228,16 @@ const DRT_SPEED = 1;
 const IS_MAC = /Mac/i.test(navigator.userAgent || "") || /Mac/i.test(navigator.platform || "");
 const KEY = "Control\u00a0(Ctrl)\u00a0key";   // non-breaking spaces keep the key name on one line
 const KEY_WHERE = "bottom left of your keyboard";
-const KEY_BOX = `<b>Where is the key?</b> It is at the bottom left of the keyboard.<br><b>Mac:</b> <span class="kbd">control ⌃</span>. Do not use <span class="kbd">command ⌘</span>.<br><b>Windows:</b> <span class="kbd">Ctrl</span>.`;   // the dot runs at real timing in every mode
+const KEYCAP = IS_MAC ? "control" : "Ctrl";
+const NOTIF = `<div class="ntf" role="status"><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm7-6V11a7 7 0 0 0-5.5-6.84V3.5a1.5 1.5 0 0 0-3 0v.66A7 7 0 0 0 5 11v5l-2 2v1h18v-1z"/></svg></span><span class="tx"><span class="t1"><b>New notification</b><span>now</span></span><span class="t2">Press <span class="k">${KEYCAP}</span> to acknowledge</span></span></div>`;
+const KEY_BOX = `<b>Where is the key?</b> It is at the bottom left of the keyboard.<br><b>Mac:</b> <span class="kbd">control ⌃</span>. Do not use <span class="kbd">command ⌘</span>.<br><b>Windows:</b> <span class="kbd">Ctrl</span>.`;   // the response task runs at real timing in every mode
 const CP_SECONDS = 30;                              // checkpoint length, equal across conditions
 const PRACTICE_CP_SECONDS = 20;
 const BASELINE_SECONDS = 30;
 const T0 = performance.now();
 const now = () => Math.round(performance.now() - T0);
 
-const SECTIONS = ["Consent", "Background", "Practice", "Main task", "Questions", "Finish"];
+const SECTIONS = ["Consent", "Background", "Practice", "Case 1", "Case 2", "Finish"];
 
 const CONDITIONS = {
   G1: { label: "Concurrent self-documentation", documenter: "self", note_visible_during_visit: true, interactive: false },
@@ -233,21 +248,24 @@ const CONDITIONS = {
 };
 
 /* ---------- stimulus content ---------- */
-const NOTE_SECTIONS = ["Chief complaint", "History of present illness", "Pertinent history", "Recent travel and activity", "Medications", "Allergies", "Vitals"];
+const NOTE_SECTIONS = ["Chief complaint", "History of present illness", "Pertinent history", "Recent travel and activity", "Family history", "Social history", "Medications", "Allergies", "Vitals"];
 const NOTE_TEMPLATE = "Chief complaint:\n\nHistory of present illness:\n\nPertinent history:\n\nMedications:\n\nAllergies:\n\nVitals:\n\nAssessment and plan:\n";
 
-const CASE = {
+/* Two cases per participant. Case A and case B are matched in length and structure.
+   The order is counterbalanced (AB or BA) together with the group. */
+const CASE_A = {
+  key: "A",
   id: "chest-pain-01",
   reference_diagnosis: "Pulmonary embolism",
   patient: { name: "Dana Reyes", initials: "DR", label: "Patient, 34" },
   intro: "Dana Reyes, 34, is a new patient at your primary care clinic.",
   video: ["videos/case_part1.mp4", "videos/case_part2.mp4", "videos/case_part3.mp4"],
   durations: [36.05, 30.04, 39.06],
-  cues: [[0, 1.26, 14.98, 16.2, 27.86, 30.04], [0, 2.39, 14.9, 16.2], [0, 1.51, 14.78, 17.2, 22.1, 29.98]],   // start time (s) of each line
+  cues: [[0, 1.26, 14.98, 16.2, 27.86, 30.04], [0, 2.39, 14.9, 16.2], [0, 1.51, 14.84, 16.91, 22.29, 30.02]],   // start time (s) of each line
   subs: [
     [[0, "D", "What brings you in today?"], [1.26, "P", "I've had chest pain for about four days."], [3.77, "P", "It comes and goes, mostly on the right side, and sometimes it's sharp."], [7.64, "P", "I thought it was my reflux."], [9.5, "P", "I've had that on and off for years, usually after coffee or spicy food, and I had a lot of both last week."], [14.98, "D", "Why last week?"], [16.2, "P", "I drove to Savannah to help my sister move. About nine hours each way."], [20.4, "P", "Lots of boxes and three flights of stairs. I got back last Sunday."], [24.34, "P", "But we had a nice walk along the river one evening."], [27.86, "D", "Any medications or allergies?"], [30.04, "P", "Omeprazole when the reflux is bad, and my birth control pill."], [34.73, "P", "No allergies."]],
     [[0, "D", "What makes the pain worse?"], [2.39, "P", "Taking a deep breath. If I yawn, it catches right here."], [6.5, "P", "Maybe it's a little worse after dinner, but it's hard to tell."], [10.26, "P", "It stays in one spot."], [12.01, "P", "No fever, just a little cough yesterday."], [14.9, "D", "Anything else going on?"], [16.2, "P", "Work is stressful. We have a big deadline, and I haven't slept well."], [19.9, "P", "I had panic attacks in college, so maybe it's that."], [22.67, "P", "Oh, and my left calf is sore, probably from the stairs."], [25.6, "P", "It feels tight when I walk, and my ankle swells a little by the end of the day."]],
-    [[0, "D", "Any shortness of breath?"], [1.51, "P", "Yes, actually. Yesterday I had to stop halfway up the stairs at work."], [6.67, "P", "That's not like me. I run three times a week."], [10.22, "P", "My heart has been racing a little too, but I assumed it was the coffee."], [14.78, "D", "Any family history of blood clots?"], [17.2, "P", "Not that I know of. My mom had a vein problem in her leg after surgery once."], [22.1, "D", "Your heart rate is 108, your oxygen is 94 percent, and your temperature is 37.4."], [28.55, "D", "Blood pressure is normal."], [29.98, "P", "Is 94 bad?"], [31.9, "P", "Oh, my cat knocked over my coffee this morning, so I haven't had any caffeine today."], [36.6, "P", "That's probably why I'm a little shaky."]]
+    [[0, "D", "Any shortness of breath?"], [1.51, "P", "Yes, actually. Yesterday I had to stop halfway up the stairs at work."], [6.67, "P", "That's not like me. I run three times a week."], [10.22, "P", "My heart has been racing a little too, but I assumed it was the coffee."], [14.84, "D", "Does anything run in your family?"], [16.91, "P", "Not that I know of. My mom had a vein problem in her leg after surgery once."], [22.29, "D", "Your heart rate is 108, your oxygen is 94 percent, and your temperature is 37.4."], [28.59, "D", "Blood pressure is normal."], [30.02, "P", "Is 94 bad?"], [31.9, "P", "Oh, my cat knocked over my coffee this morning, so I haven't had any caffeine today."], [36.6, "P", "That's probably why I'm a little shaky."]]
   ],   // captions: [start (s), speaker, text]
   segments: [
     [
@@ -267,7 +285,7 @@ const CASE = {
     [
       ["D", "Any shortness of breath?"],
       ["P", "Yes, actually. Yesterday I had to stop halfway up the stairs at work. That's not like me. I run three times a week. My heart has been racing a little too, but I assumed it was the coffee."],
-      ["D", "Any family history of blood clots?"],
+      ["D", "Does anything run in your family?"],
       ["P", "Not that I know of. My mom had a vein problem in her leg after surgery once."],
       ["D", "Your heart rate is 108, your oxygen is 94 percent, and your temperature is 37.4. Blood pressure is normal."],
       ["P", "Is 94 bad? Oh, my cat knocked over my coffee this morning, so I haven't had any caffeine today. That's probably why I'm a little shaky."]
@@ -293,13 +311,90 @@ const CASE = {
     ],
     [
       { id: "i13", after: 1, at: 10.22, sec: "History of present illness", text: "Exertional shortness of breath. Had to stop halfway up stairs at work yesterday. Runs three times a week at baseline." },
-      { id: "i14", after: 1, at: 14.78, sec: "History of present illness", text: "Palpitations, attributed by patient to coffee." },
-      { id: "i15", after: 3, at: 21.97, sec: "Pertinent history", text: "No known personal history of blood clots. Mother had a leg vein problem after surgery." },
-      { id: "i16", after: 4, at: 29.98, sec: "Vitals", text: "T 37.4 °C, HR 108, SpO2 94% on room air, BP within normal limits." },
+      { id: "i14", after: 1, at: 14.84, sec: "History of present illness", text: "Palpitations, attributed by patient to coffee." },
+      { id: "i15", after: 3, at: 22.0, sec: "Pertinent history", text: "No known personal history of blood clots. Mother had a leg vein problem after surgery." },
+      { id: "i16", after: 4, at: 30.02, sec: "Vitals", text: "T 37.4 °C, HR 108, SpO2 94% on room air, BP within normal limits." },
       { id: "i17", after: 5, at: 38.9, sec: "History of present illness", text: "Feels slightly shaky today. No caffeine this morning." }
     ]
   ]
 };
+
+const CASE_B = {
+  key: "B",
+  id: "headache-01",
+  reference_diagnosis: "Subarachnoid hemorrhage",
+  patient: { name: "Mark Sullivan", initials: "MS", label: "Patient, 45" },
+  intro: "Mark Sullivan, 45, is a new patient at your primary care clinic.",
+  video: ["videos/case2_part1.mp4", "videos/case2_part2.mp4", "videos/case2_part3.mp4"],
+  durations: [35.05, 30.04, 38.06],
+  cues: [[0, 2.01, 15.02, 16.91, 22.97, 24.66], [0, 1.07, 14.96, 16.36], [0, 3.2, 13.03, 14.82, 22.81, 30.08]],   // start time (s) of each line
+  subs: [
+    [[0, "D", "What brings you in today?"], [2.01, "P", "I've had a bad headache since yesterday afternoon."], [5.01, "P", "I was at the gym doing squats, and it hit me all at once."], [9.07, "P", "I get migraines a few times a year, so I figured it was one of those."], [13.07, "P", "I went home and lay in the dark."], [15.02, "D", "Any medications or allergies?"], [16.91, "P", "A blood pressure pill, but I ran out a few weeks ago and haven't refilled it."], [21.67, "P", "No allergies."], [22.97, "D", "How is it today?"], [24.66, "P", "Still there, a steady ache at the back of my head."], [27.94, "P", "Ibuprofen took the edge off for a few hours."], [30.79, "P", "I've been staring at screens all week for a project, so my eyes are tired too."]],
+    [[0, "D", "What makes it worse?"], [1.07, "P", "Bright light bothers me, but that's normal with my migraines."], [4.24, "P", "My neck is stiff too, mostly when I look down."], [7.4, "P", "I slept on my friend's couch on Saturday after his birthday party, so it's probably that."], [12.51, "P", "Bending forward makes the headache worse."], [14.96, "D", "Anything else going on?"], [16.36, "P", "I threw up once last night."], [18.48, "P", "I had sushi for lunch from a gas station, so maybe that was it."], [21.9, "P", "Work has been crazy, and I haven't slept well."], [25.08, "P", "I started smoking again last month, which I'm not proud of."], [28.2, "P", "My wife wants me to quit."]],
+    [[0, "D", "Any weakness, numbness, or trouble speaking?"], [3.2, "P", "No weakness."], [6.1, "P", "My wife said I was slow to answer her last night, but I was exhausted."], [10.33, "P", "Otherwise I feel okay."], [13.03, "D", "Does anything run in your family?"], [14.82, "P", "My mom gets migraines too."], [16.93, "P", "My uncle died suddenly in his fifties."], [19.51, "P", "They said it was something in his brain, but nobody really talked about it."], [22.81, "D", "Your blood pressure is 168 over 98, your heart rate is 84, and your temperature is 37.1. Your oxygen is normal."], [30.08, "P", "Is that high? I'm in pain, and I had two coffees on the way here."], [34.38, "P", "It's in a different spot than usual, but I think it's just a bad one."]]
+  ],   // captions: [start (s), speaker, text]
+  segments: [
+    [
+      ["D", "What brings you in today?"],
+      ["P", "I've had a bad headache since yesterday afternoon. I was at the gym doing squats, and it hit me all at once. I get migraines a few times a year, so I figured it was one of those. I went home and lay in the dark."],
+      ["D", "Any medications or allergies?"],
+      ["P", "A blood pressure pill, but I ran out a few weeks ago and haven't refilled it. No allergies."],
+      ["D", "How is it today?"],
+      ["P", "Still there, a steady ache at the back of my head. Ibuprofen took the edge off for a few hours. I've been staring at screens all week for a project, so my eyes are tired too."]
+    ],
+    [
+      ["D", "What makes it worse?"],
+      ["P", "Bright light bothers me, but that's normal with my migraines. My neck is stiff too, mostly when I look down. I slept on my friend's couch on Saturday after his birthday party, so it's probably that. Bending forward makes the headache worse."],
+      ["D", "Anything else going on?"],
+      ["P", "I threw up once last night. I had sushi for lunch from a gas station, so maybe that was it. Work has been crazy, and I haven't slept well. I started smoking again last month, which I'm not proud of. My wife wants me to quit."]
+    ],
+    [
+      ["D", "Any weakness, numbness, or trouble speaking?"],
+      ["P", "No weakness. My wife said I was slow to answer her last night, but I was exhausted. Otherwise I feel okay."],
+      ["D", "Does anything run in your family?"],
+      ["P", "My mom gets migraines too. My uncle died suddenly in his fifties. They said it was something in his brain, but nobody really talked about it."],
+      ["D", "Your blood pressure is 168 over 98, your heart rate is 84, and your temperature is 37.1. Your oxygen is normal."],
+      ["P", "Is that high? I'm in pain, and I had two coffees on the way here. It's in a different spot than usual, but I think it's just a bad one."]
+    ]
+  ],
+  items: [
+    [
+      { id: "s01", after: 1, at: 5.01, sec: "Chief complaint", text: "Headache since yesterday afternoon." },
+      { id: "s02", after: 1, at: 15.02, sec: "History of present illness", text: "Headache began yesterday afternoon while exercising at the gym. History of migraines a few times per year. Patient attributes it to a migraine.", seeded: "omission: sudden onset not documented" },
+      { id: "s04", after: 3, at: 21.67, sec: "Medications", text: "Antihypertensive, not taken for several weeks." },
+      { id: "s05", after: 3, at: 22.97, sec: "Allergies", text: "No known drug allergies." },
+      { id: "s03", after: 5, at: 34.6, sec: "History of present illness", text: "Steady frontal headache today. Partial relief with ibuprofen. Eye strain from screen work this week.", seeded: "error: location (patient reported the back of the head)" }
+    ],
+    [
+      { id: "s06", after: 1, at: 14.96, sec: "History of present illness", text: "Photophobia, which patient reports is typical of his migraines. Neck stiffness, worse when looking down, attributed to sleeping on a couch. Headache worse with bending forward." },
+      { id: "s07", after: 3, at: 21.9, sec: "History of present illness", text: "One episode of vomiting last night. Patient attributes it to gas station sushi." },
+      { id: "s08", after: 3, at: 25.08, sec: "Pertinent history", text: "Work stress and poor sleep." },
+      { id: "s09", after: 3, at: 28.2, sec: "Social history", text: "Resumed smoking last month." }
+    ],
+    [
+      { id: "s10", after: 1, at: 12.14, sec: "History of present illness", text: "No weakness. Wife noted he was slow to respond last night. Patient attributes this to exhaustion." },
+      { id: "s11", after: 3, at: 22.81, sec: "Family history", text: "Mother with migraines. Uncle died suddenly in his fifties of an unspecified brain condition." },
+      { id: "s12", after: 4, at: 30.08, sec: "Vitals", text: "BP 168/98, HR 84, T 37.1 °C, oxygen saturation normal." },
+      { id: "s13", after: 5, at: 37.9, sec: "History of present illness", text: "Headache location differs from his usual migraines. Two coffees before the visit." }
+    ]
+  ]
+};
+const CASES = { A: CASE_A, B: CASE_B };
+let CASE_LIST = [CASE_A, CASE_B];   // in the order shown to this participant, set at group assignment
+let CP = 0;                          // position of the current case (0 = first, 1 = second)
+const CC = () => CASE_LIST[CP];
+const CR = () => D.cases[CP];
+const caseSec = () => `Case ${CP + 1}`;
+const caseTag = () => `<h3>Case ${CP + 1} of ${CASE_LIST.length} · ${esc(CC().patient.name)}</h3>`;
+function newCaseRec(cd, pos) {
+  return { position: pos + 1, key: cd.key, id: cd.id, reference_diagnosis: cd.reference_diagnosis, video_shown: !!(cd.video && cd.video_ready !== false),
+    checkpoints: [], self_note: { snapshots: [], keystrokes: {} }, diagnosis: {}, think_aloud: null, retention: {}, integration: {}, post: {} };
+}
+function setOrder(order) {
+  D.case_order = order;
+  CASE_LIST = order.split("").map(k => CASES[k]);
+  D.cases = CASE_LIST.map((cd, i) => newCaseRec(cd, i));
+}
 
 const PRACTICE = {
   id: "practice-ankle",
@@ -389,9 +484,19 @@ const D = {
   baseline_typing: {},
   practice: { checkpoints: [] },
   think_aloud: {},
-  case: { id: CASE.id, reference_diagnosis: CASE.reference_diagnosis, checkpoints: [], self_note: { snapshots: [], keystrokes: {} }, diagnosis: {}, retention: {}, integration: {}, post: {}, final_note: {} },
+  case_order: null,
+  cases: [],
+  manipulation_check: {},
+  prior_sessions_in_browser: null,
   end: {}
 };
+/* count earlier sessions opened in this browser, to flag people who restart the study */
+try {
+  const k = "ce_study_sessions";
+  const prev = JSON.parse(localStorage.getItem(k) || "[]");
+  D.prior_sessions_in_browser = prev.length;
+  prev.push(D.started_at); localStorage.setItem(k, JSON.stringify(prev.slice(-20)));
+} catch (_) { D.prior_sessions_in_browser = null; }
 
 /* ---------- think-aloud audio recording ---------- */
 const REC = {
@@ -477,9 +582,16 @@ function optsHTML(name, options) {
 }
 const AGREE = ["Strongly disagree", "Disagree", "Somewhat disagree", "Neither agree nor disagree", "Somewhat agree", "Agree", "Strongly agree"];
 const CONFIDENCE = ["Not at all confident", "Slightly confident", "Somewhat confident", "Moderately confident", "Quite confident", "Very confident", "Completely confident"];
-const FREQUENCY = ["Never", "Once or twice", "A few times a year", "About once a month", "About once a week", "Several times a week", "Daily"];
+const FREQUENCY = ["Never", "I have only tried one (for example, in a trial or demo)", "In fewer than 25% of my patient visits", "In 25% to 49% of my patient visits", "In 50% to 74% of my patient visits", "In 75% to 89% of my patient visits", "In 90% or more of my patient visits"];
 const LOWHIGH = ["Very low", "Low", "Somewhat low", "Moderate", "Somewhat high", "High", "Very high"];
 const PERFORMANCE = ["Perfect", "Very good", "Good", "Fair", "Poor", "Very poor", "Failure"];
+const DIFFICULTY = ["Very easy", "Easy", "Somewhat easy", "Neither easy nor difficult", "Somewhat difficult", "Difficult", "Very difficult"];
+const FRUSTRATION_ITEMS = [["insecure", "Insecure"], ["discouraged", "Discouraged"], ["irritated", "Irritated"], ["stressed", "Stressed"], ["annoyed", "Annoyed"]];
+function matrixHTML(prefix, text, rows, labels) {
+  const head = labels.map(l => `<th>${esc(l)}</th>`).join("");
+  const body = rows.map(([k, t]) => `<tr><td class="rl">${esc(t)}</td>${labels.map((l, i) => `<td><label><input type="radio" name="${prefix}_${k}" value="${i + 1}" aria-label="${esc(t)}: ${esc(l)}"></label></td>`).join("")}</tr>`).join("");
+  return `<div class="field"><span class="qtext">${esc(text)}</span><div class="tablewrap"><table class="matrix"><thead><tr><th></th>${head}</tr></thead><tbody>${body}</tbody></table></div></div>`;
+}
 function likertHTML(name, text, labels = AGREE) {
   let cells = "";
   labels.forEach((lab, i) => { cells += `<label><input type="radio" name="${name}" value="${i + 1}"><span>${esc(lab)}</span></label>`; });
@@ -520,7 +632,7 @@ const DRT = {
   phase: null, seg: null, dot: null, t1: 0, t2: 0, t3: 0, pending: null, n: 0,
   start(phase, dot, seg = null) {
     this.stop(); this.phase = phase; this.dot = dot; this.seg = seg;
-    this.sched(rand(3000, 5000));
+    this.sched(rand(5000, 8000));
   },
   sched(designMs) { clearTimeout(this.t1); this.t1 = setTimeout(() => this.show(), designMs / DRT_SPEED); },
   show() {
@@ -537,7 +649,7 @@ const DRT = {
     D.drt.push({ phase: p.phase, segment: p.segment, trial: p.trial, onset_ms: p.onset_ms, rt_ms: rt == null ? null : Math.round(rt), outcome, response_target: target });
     if (this.phase && outcome !== "truncated") {
       const elapsedDesign = (performance.now() - p._on) * DRT_SPEED;
-      this.sched(Math.max(500, rand(3000, 5000) - elapsedDesign));
+      this.sched(Math.max(500, rand(5000, 8000) - elapsedDesign));
     }
   },
   press(e) {
@@ -582,38 +694,52 @@ let downloads = null;
 /* ======================================================================
    FLOW
    ====================================================================== */
-const FLOW = [sConsent, sWelcome, sDevice, sPre, sAttitudes, sPracticeStart, sIntro, sThinkAloud, sDrtIntro, sBaselineWatch, sBaselineType, sAssign, sPracticeIntro, sPractice, sCaseIntro, sVisit, sDiagnosis, sRecall, sSummary, sLoad, sChecks, sEnd, sUpload, sDebrief];
+/* each case: instructions, video, diagnosis with think-aloud, free recall, case summary, workload */
+const CASE_STEPS = [sCaseIntro, sVisit, sDiagnosis, sRecall, sSummary, sLoad];
+const atCase = (p, f) => () => { CP = p; f(); };
+const FLOW = [sConsent, sWelcome, sDevice, sPre, sAttitudes, sScribeUse, sPracticeStart, sIntro, sThinkAloud, sDrtIntro, sBaselineWatch, sBaselineType, sAssign, sPracticeIntro, sPractice];
+const CASE_START = FLOW.length;
+[0, 1].forEach(p => CASE_STEPS.forEach(f => FLOW.push(atCase(p, f))));
+FLOW.push(sChecks, sEnd, sUpload, sDebrief);
 let step = -1;
 function next() { step++; FLOW[step](); }
 
-/* Group assignment: balanced across the five groups by the backend */
+/* Group and case order assignment: balanced across groups and case orders by the backend */
 async function sAssign() {
   screen("assignment", "Practice");
   app.append(el(`<div class="col"><div class="card"><h1>Loading the next part</h1><p class="lede">This takes a few seconds.</p></div></div>`));
-  const keys = Object.keys(CONDITIONS);
-  let g = null, method = null;
+  const keys = Object.keys(CONDITIONS), ORDERS = ["AB", "BA"];
+  let g = null, method = null, order = null;
   const forced = (QS.get("g") || "").toUpperCase();
+  const forcedOrder = (QS.get("order") || "").toUpperCase();
   if (TEST && keys.includes(forced)) { g = forced; method = "test_fixed"; }
+  if (TEST && ORDERS.includes(forcedOrder)) order = forcedOrder;
   if (!g && CONFIG.ENDPOINT) {
     for (let attempt = 0; attempt < 3 && !g; attempt++) {
       try {
         const r = await fetch(`${CONFIG.ENDPOINT}?action=assign&pid=${encodeURIComponent(D.participant_id)}&test=${TEST ? 1 : 0}`);
         const j = await r.json();
-        if (j && keys.includes(j.group)) { g = j.group; method = "backend_balanced"; }
+        if (j && keys.includes(j.group)) { g = j.group; method = "backend_balanced"; if (!order && ORDERS.includes(j.order)) order = j.order; }
       } catch (e) { log("assign_error", { attempt, error: String(e) }); await new Promise(r => setTimeout(r, 1500)); }
     }
   }
   if (!g) { g = keys[Math.floor(Math.random() * keys.length)]; method = "fallback_local_random"; }
+  if (!order) order = ORDERS[Math.floor(Math.random() * 2)];
   D.condition = g; D.condition_label = CONDITIONS[g].label; D.factors = CONDITIONS[g]; D.assignment_method = method;
-  log("assigned", { condition: g, method });
+  setOrder(order);
+  log("assigned", { condition: g, method, case_order: order });
   next();
 }
 
 /* 1. Consent */
+function giftName() {
+  const parts = [CONFIG.GIFT_CARD_AMOUNT, CONFIG.GIFT_CARD_TYPE].filter(Boolean).map(esc).join(" ");
+  return parts ? `a ${parts} gift card` : "a gift card";
+}
 function sConsent() {
   screen("consent", "Consent");
   const contact = `${esc(CONFIG.CONTACT_NAME)}, ${esc(CONFIG.CONTACT_EMAIL)}${CONFIG.CONTACT_PHONE ? `, ${esc(CONFIG.CONTACT_PHONE)}` : ""}`;
-  const gift = CONFIG.GIFT_CARD_AMOUNT ? `a ${esc(CONFIG.GIFT_CARD_AMOUNT)} gift card` : "a gift card";
+  const gift = giftName();
   const n = el(`<div class="col">
     ${TEST ? `<p class="notice">Test mode. This session is not counted in group balancing.</p>` : ""}
     <div class="card consent">
@@ -641,19 +767,19 @@ function sConsent() {
       <p>You can take part if you are 21 or older and you are a physician or a medical student. Physicians at any career stage and in any specialty can take part. Nurse practitioners and physician assistants can also take part.</p>
 
       <h2>How long will I be in this research?</h2>
-      <p>We expect that taking part will last <b>about 30 minutes</b>, in one sitting. Please use a laptop or desktop computer with a microphone and speakers or headphones, in a quiet place.</p>
+      <p>We expect that taking part will last <b>about 20 minutes</b>, in one sitting. Please use a laptop or desktop computer with a microphone and speakers or headphones, in a quiet place.</p>
 
       <h2>Why is this research being done?</h2>
-      <p>This research is being conducted to understand how AI tools affect clinicians' work during patient visits. One such tool is ambient AI, an AI tool that automatically captures and summarizes the conversation during a medical consultation to assist with clinical documentation. By understanding how clinicians work with these tools, this study seeks to inform the effective and responsible use of AI tools in clinical care.</p>
+      <p>This research is being conducted to understand how AI tools affect clinicians' work during patient visits. By understanding how clinicians work with these tools, this study seeks to inform the effective and responsible use of AI tools in clinical care.</p>
 
       <h2>What happens to me if I agree to take part in this research?</h2>
-      <p>You will complete a few short practice tasks, watch a short video of a simulated patient visit, and answer questions about yourself and the visit. <b>During parts of the study, you will be asked to say your thoughts out loud while you work, and your voice will be audio-recorded.</b> We also record your answers and how you use the study page. We do not record video of you.</p>
+      <p>You will complete a few short practice tasks, watch short videos of two simulated patient visits, and answer questions about yourself and each visit. <b>During parts of the study, you will be asked to say your thoughts out loud while you work, and your voice will be audio-recorded.</b> We also record your answers and how you use the study page. We do not record video of you.</p>
 
       <h2>Could being in this research hurt me?</h2>
-      <p>This study involves minimal risk. The patient in the video is fictional, and no Protected Health Information is collected. Your audio recording could identify you by your voice, so your answers and recordings are stored without your name in a secure account that only the research team can access. If you stop early, the answers you gave so far may be kept. There is a small risk that confidentiality could be breached.</p>
+      <p>This study involves minimal risk. The patients in the videos are fictional, and no Protected Health Information is collected. Your audio recording could identify you by your voice, so your answers and recordings are stored without your name in a secure account that only the research team can access. If you stop early, the answers you gave so far may be kept. Your information will be kept confidential to the fullest extent permitted by law.</p>
 
       <h2>Will being in this research benefit me?</h2>
-      <p>There may be no direct benefit to you. However, taking part may increase your awareness and understanding of how AI tools, such as ambient AI scribes, work during patient visits and how they may shape clinicians' work. You may also gain insight into your own attitudes toward AI in clinical care and reflect on how you work with these tools. In addition, your participation will help researchers, clinicians, and developers understand how to design and use AI tools effectively and responsibly in clinical care.</p>
+      <p>Taking part may increase your awareness and understanding of how AI tools work during patient visits and how they may shape clinicians' work. You may also gain insight into your own attitudes toward AI in clinical care and reflect on how you work with these tools. In addition, your participation will help researchers, clinicians, and developers understand how to design and use AI tools effectively and responsibly in clinical care.</p>
 
       <h2>Will I be compensated for taking part?</h2>
       <p>As a token of appreciation, you will receive ${gift} after you complete the study. At the end, you will receive a code to enter in a separate gift card form. That form is not linked to your study answers. Compensation requires completing the study in full.</p>
@@ -698,7 +824,6 @@ function sPre() {
       <input type="number" id="age" min="21" max="99" step="1" inputmode="numeric"></div>
     <div class="field"><label for="gender">What is your gender?</label>
       <select id="gender"><option value="">Select</option><option>Female</option><option>Male</option><option>Other</option><option>Prefer not to say</option></select></div>
-    ${likertHTML("scribe_use", "How often do you use an ambient AI scribe in your clinical work?", FREQUENCY)}
     <div class="actions"><button class="btn" id="go">Continue</button></div>
   </div></div>`);
   app.append(n);
@@ -706,14 +831,13 @@ function sPre() {
     const c = $(".card", n);
     const v = {
       role: $("#role").value, years_clinical: $("#years").value, specialty: $("#spec").value, age: $("#age").value,
-      gender: $("#gender").value,
-      scribe_use_1to7: radioVal(c, "scribe_use")
+      gender: $("#gender").value
     };
     const missing = Object.entries(v).filter(([, x]) => x === "" || x == null);
     if (missing.length) return setErr(c, "Please answer every question before continuing.");
     const age = Number(v.age);
     if (!Number.isInteger(age) || age < 21 || age > 99) return setErr(c, "Please enter your age as a whole number between 21 and 99.");
-    ["years_clinical", "age", "scribe_use_1to7"].forEach(k => v[k] = Number(v[k]));
+    ["years_clinical", "age"].forEach(k => v[k] = Number(v[k]));
     D.pre = v; next();
   };
 }
@@ -749,6 +873,25 @@ function sAttitudes() {
   };
 }
 
+/* 2c. Ambient AI scribe use, asked after the general AI questions */
+function sScribeUse() {
+  screen("scribe_use", "Background");
+  const n = el(`<div class="col"><div class="card">
+    <h1>Ambient AI scribes</h1>
+    <p class="box">An <b>ambient AI scribe</b> is an AI tool that listens to the conversation between a clinician and a patient and automatically drafts the clinical note. Examples include Abridge, DAX Copilot, and Suki.</p>
+    <div class="field"><span class="qtext">How often do you use an ambient AI scribe in your patient visits?</span>
+      <div class="opts" role="radiogroup">${FREQUENCY.map((o, i) => `<label class="opt"><input type="radio" name="scribe_use" value="${i + 1}"><span>${esc(o)}</span></label>`).join("")}</div></div>
+    <div class="actions"><button class="btn" id="go">Continue</button></div>
+  </div></div>`);
+  app.append(n);
+  $("#go").onclick = () => {
+    const c = $(".card", n), v = radioVal(c, "scribe_use");
+    if (!v) return setErr(c, "Please answer the question before continuing.");
+    D.pre.scribe_use_1to7 = Number(v);
+    next();
+  };
+}
+
 /* 3a. Start of the practice section */
 function sPracticeStart() {
   screen("practice_start", "Practice");
@@ -759,7 +902,7 @@ function sPracticeStart() {
     <ol class="olist">
       <li>An introduction to ambient AI scribes, with a short check of your understanding.</li>
       <li>Practice thinking aloud.</li>
-      <li>Practice a response task with a white dot.</li>
+      <li>Practice a quick reaction task.</li>
       <li>A short practice video.</li>
     </ol>
     <div class="actions"><button class="btn" id="go">Start</button></div>
@@ -777,7 +920,7 @@ function sWelcome() {
     <ol class="olist">
       <li>Answer a few questions about your background.</li>
       <li>Learn and practice some tasks.</li>
-      <li>Do the main experiment.</li>
+      <li>Watch two patient visits and answer questions about each one.</li>
     </ol>
     <p class="box"><b>Some tasks in this study may seem unrelated to diagnosing the patient. This is normal and expected.</b> Each task is part of the study, so please complete every task as instructed and do your best on each one.</p>
     <div class="actions"><button class="btn" id="go">Continue</button></div>
@@ -940,18 +1083,19 @@ function sDrtIntro() {
   screen("drt_intro", "Practice");
   const n = el(`<div class="col"><div class="card">
 <h3>Practice</h3>
-    <h1>Respond to the white dot</h1>
-    <p>While you watch the videos in this study, you will also do a simple response task.</p>
+    <h1>Acknowledge notifications</h1>
+    <p>While you watch the videos in this study, you will also do a simple reaction task.</p>
     <ol class="olist">
-      <li>A <b>white dot</b> appears now and then at the <b>top center</b> of the screen. It disappears when you press the key.</li>
-      <li>Each time you see it, <b>press the ${KEY} once</b>, as quickly as you can. Use the keyboard. Do not click the dot.</li>
-      <li><b>Keep doing this the whole time</b>, while you watch, read, or type. The dot appears every few seconds, at random times.</li>
-      <li>Do not press the key when there is no dot.</li>
+      <li>As in clinical software, a <b>notification</b> pops up now and then in the <b>top-left corner</b> of the screen. It disappears when you press the key.</li>
+      <li>Each time you see it, <b>press the ${KEY} once</b>, as quickly as you can. Use the keyboard. Do not click the notification.</li>
+      <li><b>Keep doing this the whole time</b>, while you watch, read, or type. Notifications appear every few seconds, at random times.</li>
+      <li>Do not press the key when there is no notification.</li>
+      <li>The notifications are not related to the patient. You only need to acknowledge them.</li>
     </ol>
     <p class="box">${KEY_BOX}</p>
-    <div class="stage" style="aspect-ratio:21/9" id="demo"><div class="drt-dot" id="ddot"></div><div class="fix">+</div><div class="caption" style="min-height:0;justify-content:space-between"><span id="dmsg">Try it: click Start, then press the ${KEY} when the dot appears.</span><span class="mono" id="dcount"></span></div></div>
+    <div class="stage" style="aspect-ratio:21/9" id="demo"><div class="drt-dot" id="ddot">${NOTIF}</div><div class="fix">+</div><div class="caption" style="min-height:0;justify-content:space-between"><span id="dmsg">Try it: click Start, then press the ${KEY} when a notification appears.</span><span class="mono" id="dcount"></span></div></div>
     <div class="actions" style="justify-content:flex-start"><button class="btn ghost" id="try">Start</button></div>
-    <p>After this, you will practice twice, for 30 seconds each. First you will only watch the screen. Then you will type a short passage while responding to the dot.</p>
+    <p>After this, you will practice twice, for 30 seconds each. First you will only watch the screen. Then you will type a short passage while acknowledging notifications.</p>
     <div class="actions"><button class="btn" id="go" disabled>Start practice 1</button></div>
   </div></div>`);
   app.append(n);
@@ -961,26 +1105,26 @@ function sDrtIntro() {
   const say = t => { msg.textContent = t; };
   function schedule() {
     armed = true; waiting = false;
-    tShow = setTimeout(() => { dot.classList.add("on"); waiting = true; tMiss = setTimeout(() => { if (!waiting) return; waiting = false; dot.classList.remove("on"); tr.misses++; say("The dot went away. Press the key as soon as you see it."); schedule(); }, 3000); }, (1200 + Math.random() * 1500) / SPEED);
+    tShow = setTimeout(() => { dot.classList.add("on"); waiting = true; tMiss = setTimeout(() => { if (!waiting) return; waiting = false; dot.classList.remove("on"); tr.misses++; say("The notification went away. Press the key as soon as you see it."); schedule(); }, 3000); }, (1200 + Math.random() * 1500) / SPEED);
   }
   function onKey(e) {
     if (!armed || e.repeat) return;
     if (e.key === "Control") {
-      if (!waiting) { tr.early++; say("Wait for the dot, then press the key."); return; }
+      if (!waiting) { tr.early++; say("Wait for the notification, then press the key."); return; }
       waiting = false; clearTimeout(tMiss); dot.classList.remove("on"); tr.correct++;
       cnt.textContent = `${tr.correct} of ${NEED}`;
       if (tr.correct >= NEED) { armed = false; say("Well done. You are ready for the practice."); $("#go").disabled = false; $("#try").hidden = true; document.removeEventListener("keydown", onKey, true); return; }
-      say("Correct. Wait for the next dot."); schedule();
+      say("Correct. Wait for the next notification."); schedule();
     } else if (e.key === "Meta") { tr.wrong_key++; say(IS_MAC ? "That was command ⌘. Please press control ⌃ instead." : "That was the Windows key. Please press Ctrl instead."); }
     else if (waiting) { tr.wrong_key++; say(`That key is not used. Please press the ${KEY}.`); }
   }
   document.addEventListener("keydown", onKey, true);
-  $("#try").onclick = () => { $("#try").disabled = true; $("#try").textContent = "Running"; cnt.textContent = `0 of ${NEED}`; say(`Press the ${KEY} when the dot appears.`); schedule(); };
+  $("#try").onclick = () => { $("#try").disabled = true; $("#try").textContent = "Running"; cnt.textContent = `0 of ${NEED}`; say(`Press the ${KEY} when a notification appears.`); schedule(); };
   $("#go").onclick = () => { clearTimeout(tShow); clearTimeout(tMiss); document.removeEventListener("keydown", onKey, true); next(); };
 }
 
 function miniStage(label) {
-  return `<div class="stage" style="aspect-ratio:21/9"><div class="drt-dot"></div><div class="fix">+</div><div class="caption" style="min-height:0;justify-content:space-between"><span>${label}</span><span class="mono" id="cd"></span></div></div>`;
+  return `<div class="stage" style="aspect-ratio:21/9"><div class="drt-dot">${NOTIF}</div><div class="fix">+</div><div class="caption" style="min-height:0;justify-content:space-between"><span>${label}</span><span class="mono" id="cd"></span></div></div>`;
 }
 function countdown(seconds, onTick, onDone) {
   const t0 = performance.now();
@@ -998,7 +1142,7 @@ function sBaselineWatch() {
   screen("baseline_watch", "Practice");
   const n = el(`<div class="col"><div class="card">
 <h3>Practice</h3>
-    <h2>Watch the screen. Press the ${KEY} each time the white dot appears.</h2>
+    <h2>Watch the screen. Press the ${KEY} each time a notification appears.</h2>
     <p class="box">${KEY_BOX}</p>
     <p class="hint">This practice runs for 30 seconds. Continue becomes available when it ends.</p>
     ${miniStage("Practice 1")}
@@ -1015,10 +1159,10 @@ function sBaselineWatch() {
 /* 7. Baseline B: DRT while copy-typing */
 function sBaselineType() {
   screen("baseline_typing", "Practice");
-  const passage = "The library opens at nine on weekdays and at ten on Saturdays. Visitors can borrow up to six books at a time and return them at any branch in the city. Study rooms can be reserved online up to one week in advance.";
+  const passage = "The library opens at nine on weekdays. Visitors can borrow up to six books at a time.";
   const n = el(`<div class="col"><div class="card">
 <h3>Practice</h3>
-    <h2>Type the passage below. Each time the white dot appears, press the ${KEY}, then keep typing.</h2>
+    <h2>Type the passage below. Each time a notification appears, press the ${KEY}, then keep typing.</h2>
     <p class="hint">This practice runs for 30 seconds. You do not need to finish the passage.</p>
     ${miniStage("Practice 2")}
     <p class="doc">${esc(passage)}</p>
@@ -1046,7 +1190,7 @@ function sPracticeIntro() {
     <h1>Practice video</h1>
     ${manipBox(g)}
     <p>First, a short practice video lets you get familiar with the interface. Nothing from the practice video is used in the study.</p>
-    <p class="box"><b>Remember the white dot:</b> During the video, press the ${KEY} every time the white dot appears at the top of the video.</p>
+    <p class="box"><b>Remember the notifications:</b> During the video, press the ${KEY} every time a notification appears in the corner of the video.</p>
     <div class="actions"><button class="btn" id="go">Start practice video</button></div>
   </div></div>`);
   app.append(n);
@@ -1060,16 +1204,16 @@ function sPractice() {
     screen("practice_done", "Practice");
     const n = el(`<div class="col"><div class="card">
       <h3>Practice</h3>
-      ${(() => { const t = D.drt.filter(x => x.phase === "practice" && x.outcome !== "truncated"); const h = t.filter(x => x.outcome === "hit").length; return t.length ? `<p class="box">White dot: you responded to <b>${h} of ${t.length}</b>.${h < t.length ? ` <b>In the main video, press the ${KEY} every time the dot appears.</b>` : " Well done."}</p>` : ""; })()}
+      ${(() => { const t = D.drt.filter(x => x.phase === "practice" && x.outcome !== "truncated"); const h = t.filter(x => x.outcome === "hit").length; return t.length ? `<p class="box">Notifications: you acknowledged <b>${h} of ${t.length}</b>.${h < t.length ? ` <b>In the case videos, press the ${KEY} every time a notification appears.</b>` : " Well done."}</p>` : ""; })()}
       <h1>Could you hear the patient clearly?</h1>
-      <p>The main video has no captions, so <b>you need to hear the conversation clearly.</b></p>
+      <p>The case videos have no captions, so <b>you need to hear the conversation clearly.</b></p>
       <div class="field">${optsHTML("hear", ["Yes", "No"])}</div>
       <div id="fix" hidden>
         <p><b>Please check that your sound is on and your volume is up, or try headphones.</b> Then play the sample and answer again.</p>
         <video id="snd" playsinline preload="auto" style="width:100%;max-width:420px;border-radius:6px;background:#000;display:block"></video>
         <div class="actions" style="justify-content:flex-start"><button class="btn ghost" id="play">Play sample</button></div>
       </div>
-      <p>The main video takes about three minutes and is shown in three parts, with a short break between parts. It works the same way as the practice video.</p>
+      <p>Next come <b>two patient cases</b>. Each case has a video of about three minutes, shown in three parts with a short break between parts. Each video works the same way as the practice video.</p>
       <div class="actions"><button class="btn" id="go">Continue</button></div>
     </div></div>`);
     app.append(n);
@@ -1092,14 +1236,16 @@ function sPractice() {
 
 /* 11. Case instructions */
 function sCaseIntro() {
-  screen("case_instructions", "Main task");
+  screen(`case${CP + 1}_instructions`, caseSec());
   const g = D.condition;
   const n = el(`<div class="col"><div class="card">
-    <h1>${esc(CASE.intro)}</h1>
+    <h3>Case ${CP + 1} of ${CASE_LIST.length}</h3>
+    ${CP > 0 ? `<p class="box"><b>You have finished the first case.</b> The second case is a different patient and works the same way.</p>` : ""}
+    <h1>${esc(CC().intro)}</h1>
     <p>${COMMON_INSTR}</p>
     ${manipBox(g)}
-    <p class="box"><b>Remember the white dot:</b> During the video, press the ${KEY} every time the white dot appears at the top of the video.</p>
-    <div class="actions"><button class="btn" id="go">Go to the main video</button></div>
+    <p class="box"><b>Remember the notifications:</b> During the video, press the ${KEY} every time a notification appears in the corner of the video.</p>
+    <div class="actions"><button class="btn" id="go">Go to the video</button></div>
   </div></div>`);
   app.append(n);
   $("#go").onclick = next;
@@ -1107,15 +1253,16 @@ function sCaseIntro() {
 
 /* 12. Study visit */
 function sVisit() {
-  screen("study_visit", "Main task");
-  runVisit(CASE, "visit", CP_SECONDS, D.case, next);
+  screen(`case${CP + 1}_visit`, caseSec());
+  runVisit(CC(), `visit_${CP + 1}`, CP_SECONDS, CR(), next);
 }
 
 /* ---------- visit engine ---------- */
 function runVisit(cd, phase, cpSec, rec, onDone) {
   const g = D.condition, C = CONDITIONS[g];
   const lines = cd.segments.flat();
-  const VIDEO = !!(cd.video && !(TEST && QS.has("novideo")));
+  const VIDEO = !!(cd.video && cd.video_ready !== false && !(TEST && QS.has("novideo")));
+  const vidLabel = phase === "practice" ? "Practice video" : `Case ${CP + 1} of ${CASE_LIST.length}: ${cd.patient.name}`;
   const segDur = VIDEO ? cd.durations.slice() : cd.segments.map(seg => seg.reduce((s, l) => s + lineDur(l[1]), 0));
   const total = segDur.reduce((a, b) => a + b, 0);
   const segEnds = []; let acc = 0;
@@ -1127,7 +1274,7 @@ function runVisit(cd, phase, cpSec, rec, onDone) {
   const n = el(`<div class="wide"><div class="visit">
     <div>
       <div class="stage${VIDEO ? " has-video" : ""}" id="stage">
-        <div class="drt-dot" id="dot"></div>
+        <div class="drt-dot" id="dot">${NOTIF}</div>
         ${isAI ? '<div class="badge"><i></i>AI scribe recording</div>' : ""}
         ${VIDEO ? '<video id="vid" playsinline preload="auto" disablepictureinpicture controlslist="nodownload noplaybackrate" tabindex="-1"></video>' : ""}
         <div class="speakers"${VIDEO ? " hidden" : ""}>
@@ -1139,7 +1286,7 @@ function runVisit(cd, phase, cpSec, rec, onDone) {
       </div>
       <div class="track" aria-hidden="true"><div class="fill" id="fill"></div>${ticks}</div>
       <div class="under"><span id="vstat">Ready</span><span class="mono" id="vtime">0:00 / ${fmt(total)}</span></div>
-      <p class="box" style="margin-top:10px"><b>Press the ${KEY} every time the white dot appears at the top of the video.</b></p>
+      <p class="box" style="margin-top:10px"><b>Press the ${KEY} every time a notification appears in the corner of the video.</b></p>
     </div>
     <aside class="panel" id="panel" aria-label="Clinical note"></aside>
   </div></div>`);
@@ -1433,7 +1580,7 @@ function runVisit(cd, phase, cpSec, rec, onDone) {
   }
 
   /* start overlay */
-  ov.innerHTML = `<div class="big">${phase === "practice" ? "Practice video" : "Main video"}</div><div class="sub">Click Start when you are ready. <b>The video plays from start to end and cannot be paused or replayed.</b> Remember to press the ${KEY} whenever the dot appears.</div><button class="btn" id="ovgo">Start</button>`;
+  ov.innerHTML = `<div class="big">${esc(vidLabel)}</div><div class="sub">Click Start when you are ready. <b>The video plays from start to end and cannot be paused or replayed.</b> Remember to press the ${KEY} whenever a notification appears.</div><button class="btn" id="ovgo">Start</button>`;
   $("#ovgo", ov).onclick = () => {
     ov.hidden = true; rec.visit_start_ms = now(); log("visit_start", { phase });
     if (selfTA) selfTA.focus();
@@ -1447,13 +1594,14 @@ function runVisit(cd, phase, cpSec, rec, onDone) {
 
 /* 13. Diagnosis */
 function sDiagnosis() {
-  screen("diagnosis", "Questions");
+  screen(`case${CP + 1}_diagnosis`, caseSec());
   const ord = ["most likely", "second most likely", "third most likely"];
   const dx = i => `<div class="dxblock">
       <div class="field"><label for="dx${i}">${i === 1 ? "Most likely diagnosis" : `Diagnosis ${i} <span class="hint">(optional)</span>`}</label><input type="text" id="dx${i}" autocomplete="off"></div>
       ${likertHTML(`conf${i}`, "Please rate your confidence from Not at all confident to Completely confident.", CONFIDENCE)}
     </div>`;
   const n = el(`<div class="col"><div class="card">
+    ${caseTag()}
     <h1>What is going on with this patient?</h1>
     <p class="lede"><b>Think aloud the whole time you work on this page.</b> Say everything that goes through your mind as you work out what is going on. Then list up to three diagnoses, from most to least likely. <b>You cannot return to this page after you submit.</b></p>
     ${recBar("dxbar")}
@@ -1463,7 +1611,8 @@ function sDiagnosis() {
   app.append(n);
   const t0 = now();
   let stopTimer = () => {};
-  REC.start("diagnosis").then(ok => {
+  const tag = `diagnosis_${CP + 1}`;
+  REC.start(tag).then(ok => {
     if (D.think_aloud.recording_available === undefined) D.think_aloud.recording_available = ok;
     stopTimer = wireRecBar($("#dxbar"), ok);
   });
@@ -1473,7 +1622,7 @@ function sDiagnosis() {
     for (const i of [1, 2, 3]) {
       if ($(`#dx${i}`).value.trim() && !radioVal(c, `conf${i}`)) return setErr(c, `Please rate your confidence in diagnosis ${i}.`);
     }
-    D.case.diagnosis = {
+    CR().diagnosis = {
       ranked: [1, 2, 3].map(i => {
         const conf = radioVal(c, `conf${i}`);
         return { rank: i, diagnosis: $(`#dx${i}`).value.trim(), confidence_1to7: conf ? Number(conf) : null, confidence_scaled: conf ? (Number(conf) - 1) / 6 : null };
@@ -1483,16 +1632,17 @@ function sDiagnosis() {
     };
     stopTimer();
     $("#go").disabled = true;
-    D.think_aloud.diagnosis = await REC.stop();
+    CR().think_aloud = await REC.stop();
     next();
   };
 }
 
 /* 14. Information retention: free recall */
 function sRecall() {
-  screen("free_recall", "Questions");
-  const MIN = 150, LIMIT = 180;
+  screen(`case${CP + 1}_free_recall`, caseSec());
+  const MIN = 90, LIMIT = 180;
   const n = el(`<div class="col"><div class="card">
+    ${caseTag()}
     <h1>List what you remember</h1>
     <p>List everything you remember about this patient from the visit: what the patient said, what you were told, and any findings. <b>Write one item per line.</b> Include details even if they seem unimportant. <b>Do not explain or interpret the information. Just list it.</b></p>
     <div class="field"><label for="recall">Your list</label>
@@ -1512,7 +1662,7 @@ function sRecall() {
   $("#go").onclick = () => {
     clearInterval(iv);
     const items = $("#recall").value.split(/\n+/).map(x => x.trim()).filter(Boolean);
-    D.case.retention = { free_recall: items, n_items: items.length, time_ms: now() - t0,
+    CR().retention = { free_recall: items, n_items: items.length, time_ms: now() - t0,
       coding_note: "Code each line against the physician-validated cue map: focal, non-focal, irrelevant detail, intrusion error. Optional: adjusted ratio of clustering (order of recall)." };
     next();
   };
@@ -1520,9 +1670,10 @@ function sRecall() {
 
 /* 15. Information integration: problem representation */
 function sSummary() {
-  screen("problem_representation", "Questions");
+  screen(`case${CP + 1}_problem_representation`, caseSec());
   const MAXW = 60;
   const n = el(`<div class="col"><div class="card">
+    ${caseTag()}
     <h1>Summarize the case</h1>
     <p>Summarize this patient's case <b>in one to three sentences</b>, as you would present it to a colleague. Bring together the findings you consider most important. <b>Do not name a diagnosis.</b></p>
     <div class="field"><label for="sum">Your summary</label>
@@ -1536,14 +1687,14 @@ function sSummary() {
   $("#sum").addEventListener("input", () => { $("#wc").textContent = `${words()} of ${MAXW} words`; });
   $("#sum").addEventListener("paste", e => e.preventDefault());
   $("#sum").focus();
-  const t0 = now(), MIN = 150;
+  const t0 = now(), MIN = 90;
   const iv = countdown(MIN, r => { $("#st").textContent = r > 0 ? `Please take your time. You can continue in ${fmt(r)}.` : "You can continue now."; }, () => { $("#go").disabled = false; });
   $("#go").onclick = () => {
     const c = $(".card", n), w = words();
     if (w < 8) return setErr(c, "Please write a short summary of the case.");
     if (w > MAXW) return setErr(c, `Please shorten your summary to ${MAXW} words or fewer. It is ${w} words now.`);
     clearInterval(iv);
-    D.case.integration = { summary_statement: $("#sum").value.trim(), words: w, time_ms: now() - t0,
+    CR().integration = { summary_statement: $("#sum").value.trim(), words: w, time_ms: now() - t0,
       coding_note: "Score integration: cross-segment coverage of focal cues, linking statements (temporal, enabling condition to consequence), higher-order synthesis, three-part structure, factual accuracy, irrelevant content (reverse). Score separately: semantic qualifiers and abstraction (interpretive). Code whether a diagnosis was named. Two blinded raters." };
     next();
   };
@@ -1551,16 +1702,18 @@ function sSummary() {
 
 /* 15. Post-visit measures */
 function sLoad() {
-  screen("post_visit_load", "Questions");
+  screen(`case${CP + 1}_workload`, caseSec());
   const n = el(`<div class="col"><div class="card">
-    <h1>How the visit felt</h1>
+    ${caseTag()}
+    <h1>How the visit felt to you as the clinician</h1>
     <p class="lede"><b>Please rate from Very low to Very high.</b></p>
     ${likertHTML("tlx_mental", "How mentally demanding was the visit?", LOWHIGH)}
     ${likertHTML("tlx_physical", "How physically demanding was the visit?", LOWHIGH)}
     ${likertHTML("tlx_temporal", "How hurried or rushed was the pace of the visit?", LOWHIGH)}
-    ${likertHTML("tlx_performance", "How successful were you in accomplishing what you were asked to do?", PERFORMANCE)}
+    ${likertHTML("tlx_performance", "How successful were you in accomplishing what you were asked to do? Please rate from Perfect to Failure.", PERFORMANCE)}
     ${likertHTML("tlx_effort", "How hard did you have to work to accomplish your level of performance?", LOWHIGH)}
-    ${likertHTML("tlx_frustration", "How insecure, discouraged, irritated, stressed, and annoyed were you?", LOWHIGH)}
+    ${matrixHTML("fr", "During the visit, how much did you feel each of the following?", FRUSTRATION_ITEMS, LOWHIGH)}
+    ${likertHTML("difficulty", "How difficult was it to diagnose this patient? Please rate from Very easy to Very difficult.", DIFFICULTY)}
     <div class="actions"><button class="btn" id="go">Continue</button></div>
   </div></div>`);
   app.append(n);
@@ -1568,24 +1721,28 @@ function sLoad() {
     const c = $(".card", n);
     const tlx = {};
     const tk = ["mental", "physical", "temporal", "performance", "effort", "frustration"];
-    tk.forEach(k => { const v = radioVal(c, "tlx_" + k); tlx[k] = v ? Number(v) : null; });
-    if (tk.some(k => tlx[k] == null)) return setErr(c, "Please answer every question before continuing.");
+    tk.forEach(k => { if (k === "frustration") return; const v = radioVal(c, "tlx_" + k); tlx[k] = v ? Number(v) : null; });
+    const fr = {}; FRUSTRATION_ITEMS.forEach(([k]) => { const v = radioVal(c, "fr_" + k); fr[k] = v ? Number(v) : null; });
+    tlx.frustration_items = fr;
+    tlx.frustration = Object.values(fr).some(v => v == null) ? null : Object.values(fr).reduce((a, b) => a + b, 0) / FRUSTRATION_ITEMS.length;
+    const diff = radioVal(c, "difficulty");
+    if (tk.some(k => tlx[k] == null) || !diff) return setErr(c, "Please answer every question before continuing.");
     // NASA-TLX items, 1 = Very low (performance: 1 = Perfect, 7 = Failure), so higher = more workload on every item
     tlx.raw_tlx_mean = tk.reduce((s, k) => s + tlx[k], 0) / tk.length;
     tlx.core_mean = (tlx.mental + tlx.temporal + tlx.effort) / 3;
-    tlx.scale_note = "NASA-TLX (Hart and Staveland 1988) items adapted to the visit, 7-point, unweighted. Higher = more workload on every item. raw_tlx_mean = all six. core_mean = mental, temporal, effort.";
-    D.case.post = { nasa_tlx_1to7: tlx };
+    tlx.scale_note = "NASA-TLX (Hart and Staveland 1988) items adapted to the visit, 7-point, unweighted. Higher = more workload on every item. frustration = mean of five separate items (insecure, discouraged, irritated, stressed, annoyed). raw_tlx_mean = all six dimensions. core_mean = mental, temporal, effort.";
+    CR().post = { nasa_tlx_1to7: tlx, diagnosis_difficulty_1to7: Number(diff) };
     next();
   };
 }
 
 function sChecks() {
-  screen("post_visit_checks", "Questions");
+  screen("post_visit_checks", "Finish");
   const n = el(`<div class="col"><div class="card">
-    <h1>How the visit was set up</h1>
-    <div class="field"><span class="qtext">For this visit, who was responsible for drafting the clinical note?</span>
-      ${optsHTML("mc1", ["I wrote it during the visit", "I will write it after the visit", "An AI scribe drafted it", "Not sure"])}</div>
-    <div class="field"><span class="qtext">During the visit, could you see a draft of the note?</span>
+    <h1>How the visits were set up</h1>
+    <div class="field"><span class="qtext">In these two visits, who was responsible for drafting the clinical notes?</span>
+      ${optsHTML("mc1", ["I wrote them during the visits", "I would write them after the visits", "An AI scribe drafted them", "Not sure"])}</div>
+    <div class="field"><span class="qtext">During the visits, could you see a draft of the note?</span>
       ${optsHTML("mc2", ["Yes, my own note", "Yes, the AI draft", "No"])}</div>
     <div class="field"><span class="qtext">During the breaks between parts, were you asked to confirm or correct the note?</span>
       ${optsHTML("mc3", ["Yes", "No"])}</div>
@@ -1597,20 +1754,20 @@ function sChecks() {
     const names = ["mc1", "mc2", "mc3"];
     const v = {}; names.forEach(k => v[k] = radioVal(c, k));
     if (names.some(k => !v[k])) return setErr(c, "Please answer every question before continuing.");
-    D.case.post.manipulation_check = { note_responsibility: v.mc1, saw_draft: v.mc2, asked_to_confirm: v.mc3 };
+    D.manipulation_check = { note_responsibility: v.mc1, saw_draft: v.mc2, asked_to_confirm: v.mc3 };
     next();
   };
 }
 
 /* 16. Note completion / review and sign */
 function buildAINote() {
-  const st = D.case.ai_items_state || [];
-  const all = CASE.items.flat().map(it => {
+  const st = (CR() && CR().ai_items_state) || [];
+  const all = CC().items.flat().map(it => {
     const s = st.find(x => x.id === it.id);
     return { ...it, text: s ? s.text : it.text };
   });
   const added = st.filter(x => x.added);
-  let out = "CLINICAL NOTE (AI draft)\nPatient: Dana Reyes, 34, F\n";
+  let out = `CLINICAL NOTE (AI draft)\nPatient: ${CC().patient.name}\n`;
   NOTE_SECTIONS.forEach(sec => {
     const its = all.filter(i => i.sec === sec);
     if (its.length) out += `\n${sec}\n` + its.map(i => `- ${i.text}`).join("\n") + "\n";
@@ -1623,7 +1780,7 @@ function sNote() {
   screen("note", "Note");
   const g = D.condition;
   let title, lede, prefill = "", placeholder = "";
-  if (g === "G1") { title = "Finalize your note"; lede = "Here is the note you wrote during the visit. Make any final changes, then sign it."; prefill = D.case.self_note.text_at_visit_end || ""; }
+  if (g === "G1") { title = "Finalize your note"; lede = "Here is the note you wrote during the visit. Make any final changes, then sign it."; prefill = CR().self_note.text_at_visit_end || ""; }
   else if (g === "G2") { title = "Write your note"; lede = "Write the clinical note for this visit from memory, then sign it."; placeholder = NOTE_TEMPLATE; }
   else { title = "Review the AI draft"; lede = "Here is the final draft from the AI scribe. Correct anything that is wrong or missing, then sign it."; prefill = buildAINote(); }
   const n = el(`<div class="col"><div class="card">
@@ -1644,7 +1801,7 @@ function sNote() {
     if (!$("#sign").checked) return setErr(c, "Please check the box to sign the note.");
     const fin = ta.value;
     const low = fin.toLowerCase();
-    D.case.final_note = {
+    CR().final_note = {
       mode: g === "G1" ? "finalize_own" : g === "G2" ? "write_after_visit" : "review_ai_draft",
       initial_text: prefill, final_text: fin, edited: fin !== prefill, keystrokes: keys, time_ms: now() - t0,
       seeded_checks: CONDITIONS[g].documenter === "ai" ? {
@@ -1661,18 +1818,13 @@ function sEnd() {
   screen("end_questions", "Finish");
   const n = el(`<div class="col"><div class="card">
     <h1>Almost done</h1>
-    <div class="field"><span class="qtext">How did you complete this study?</span>
-      ${optsHTML("serious", ["I took part seriously", "I did not pay full attention, so my answers should not be used"])}</div>
-    <div class="field"><label for="purpose">In your own words, what do you think this study was testing?</label><textarea id="purpose"></textarea></div>
-    <div class="field"><label for="comments">Any comments about the study? <span class="hint">(optional)</span></label><textarea id="comments"></textarea></div>
+    <div class="field"><label for="comments">Any comments about the study? (optional)</label><textarea id="comments"></textarea></div>
     <div class="actions"><button class="btn" id="go">Finish</button></div>
   </div></div>`);
   app.append(n);
   $("#go").onclick = () => {
     const c = $(".card", n);
-    const s = radioVal(c, "serious");
-    if (!s || !$("#purpose").value.trim()) return setErr(c, "Please answer both questions.");
-    D.end = { seriousness: s, suspicion_probe: $("#purpose").value.trim(), comments: $("#comments").value.trim(), completed_at: new Date().toISOString(), total_ms: now() };
+    D.end = { comments: $("#comments").value.trim(), completed_at: new Date().toISOString(), total_ms: now() };
     next();
   };
 }
@@ -1687,11 +1839,14 @@ async function sUpload() {
   if (cur) cur.end_ms = now();
   const n = el(`<div class="col"><div class="card"><h1>Saving your responses</h1><p class="lede" id="upmsg">Please keep this page open. This can take up to a minute.</p><div class="actions"><button class="btn" id="go" hidden>Try again</button></div></div></div>`);
   app.append(n);
-  const audio = REC.blobs.diagnosis;
+  const audios = [];
+  for (const [i, c] of D.cases.entries()) {
+    const b = REC.blobs[`diagnosis_${i + 1}`];
+    if (b) audios.push({ position: i + 1, case_id: c.id, mime: b.type || "audio/webm", data: await blobToBase64(b) });
+  }
   const payload = {
     kind: "complete", participant_id: D.participant_id, group: D.condition, test: TEST,
-    record: D,
-    audio: audio ? { mime: audio.type || "audio/webm", data: await blobToBase64(audio) } : null
+    record: D, audios
   };
   const body = JSON.stringify(payload);
   async function attempt() {
@@ -1744,7 +1899,7 @@ function endStudyEarly() {
 
 /* 18. Debrief + session data */
 function drtSummary() {
-  const phases = ["baseline_watch", "baseline_typing", "practice", "visit"];
+  const phases = ["baseline_watch", "baseline_typing", "practice", "visit_1", "visit_2"];
   return phases.map(ph => {
     const t = D.drt.filter(x => x.phase === ph && x.outcome !== "truncated");
     const hits = t.filter(x => x.outcome === "hit");
@@ -1765,9 +1920,9 @@ function sDebrief() {
   const n = el(`<div class="col"><div class="card">
     <h1>Thank you very much for your participation</h1>
     <p>Your responses have been saved.</p>
-    <p>Your gift card code is</p>
+    <p>Your code for ${giftName()} is</p>
     <p class="bigcode">${esc(code)}</p>
-    ${CONFIG.GIFT_CARD_FORM_URL ? `<p>Enter this code in the gift card form to receive your gift card. The form opens in a new tab and is not linked to your answers.</p><div class="actions" style="justify-content:flex-start"><a class="btn" href="${esc(CONFIG.GIFT_CARD_FORM_URL)}" target="_blank" rel="noopener">Open the gift card form</a></div>` : `<p>Please keep this code to receive your gift card.</p>`}
+    ${CONFIG.GIFT_CARD_FORM_URL ? `<p>To receive your gift card, open the gift card form below and enter this code. The form opens in a new tab and is not linked to your answers.</p><div class="actions" style="justify-content:flex-start"><a class="btn" href="${esc(CONFIG.GIFT_CARD_FORM_URL)}" target="_blank" rel="noopener">Open the gift card form</a></div>` : `<p>Please copy and keep this code. You will need it to receive your gift card.</p>`}
     <p class="hint">You can close this page now.</p>
     ${TEST ? `<textarea id="raw" hidden></textarea>` : ""}
   </div></div>`);
@@ -1775,14 +1930,15 @@ function sDebrief() {
   if (TEST) $("#raw").value = JSON.stringify(D);
 }
 
-/* test shortcut: ?test=1&jump=practice starts at group assignment, ?test=1&jump=visit&g=G4 starts at the study visit */
+/* test shortcut: ?test=1&jump=practice starts at group assignment, ?test=1&jump=visit&g=G4&order=BA starts at the first case */
 const JUMP = TEST ? QS.get("jump") : null;
 if (JUMP === "practice") step = FLOW.indexOf(sAssign) - 1;
 if (JUMP === "visit") {
   const jg = (QS.get("g") || "G4").toUpperCase(), cg = CONDITIONS[jg] ? jg : "G4";
   D.condition = cg; D.condition_label = CONDITIONS[cg].label; D.factors = CONDITIONS[cg]; D.assignment_method = "test_jump";
   D.consent = { agreed: true, at_ms: now(), test_jump: true };
-  step = FLOW.indexOf(sCaseIntro) - 1;
+  setOrder(["AB", "BA"].includes((QS.get("order") || "").toUpperCase()) ? QS.get("order").toUpperCase() : "AB");
+  step = CASE_START - 1;
 }
 next();
 })();
